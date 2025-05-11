@@ -1,0 +1,23 @@
+table inet inet_table {
+    chain input {
+        type filter hook input priority filter + 1; policy drop;
+    }
+
+    chain forward {
+        type filter hook forward priority filter + 1; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority raw - 1; policy drop;
+    }
+}
+table arp arp_table {
+    chain input {
+        type filter hook input priority filter + 1; policy drop;
+    }
+
+
+    chain output {
+        type filter hook output priority filter + 1; policy drop;
+    }
+}

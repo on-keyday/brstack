@@ -1,0 +1,16 @@
+services:
+  brstack_app:
+    image: brstack_app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      tags:
+        - brstack_app:latest
+    profiles:
+      - build_only
+
+  client:
+    image: brstack_app:latest
+    cap_add:
+     - NET_ADMIN # nftablesを使用するために必要
+     - NET_RAW # raw socketを使用するために必要

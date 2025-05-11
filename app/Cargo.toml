@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "brstack"
 version = "0.1.0"
 authors.workspace = true
 categories.workspace = true
