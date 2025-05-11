@@ -1,3 +1,28 @@
 [workspace]
 
-members = []
+members = ["app", "protocol/*"]
+resolver = "2"
+
+[workspace.package]
+authors = ["megumsih <megumish@megumi.sh>", "on-keyday <hello@on-keyday.net>", "ultra-supara"]
+categories = []
+description = "implementation of a protocol stack using the brgen"
+documentation = ""
+edition = "2021"
+exclude = []
+homepage = "https://github.com/on-keyday/brstack"
+include = []
+keywords = []
+license = "MIT"
+publish = false
+readme = "./README.md"
+repository = "https://github.com/on-keyday/brstack"
+rust-version = "1.82"
+
+[workspace.dependencies]
+#####################
+# external libraries
+#####################
+# logger
+log = "0.4.25"
+env_logger = "0.11.6"
