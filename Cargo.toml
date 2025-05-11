@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["app", "protocol/*"]
+members = ["app"]
 resolver = "2"
 
 [workspace.package]
