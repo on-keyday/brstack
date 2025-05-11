@@ -7,9 +7,12 @@ name = "brstack"
 version = "0.1.0"
 
 [[package]]
-name = "common"
+name = "ethernet"
 version = "0.1.0"
+dependencies = [
+ "net_common",
+]
 
 [[package]]
-name = "ethernet"
+name = "net_common"
 version = "0.1.0"

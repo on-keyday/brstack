@@ -33,4 +33,4 @@ ethernet = { path = "protocol/ethernet" }
 
 
 ## Common Definitions (Addresses, Constants,etc...)
-common = { path = "protocol/common" }
+net_common = { path = "protocol/net_common" }
