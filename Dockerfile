@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./app/ /app/app/
+COPY ./protocol/ /app/protocol/
 COPY ./Cargo.toml /app/Cargo.toml
 COPY ./Cargo.lock /app/Cargo.lock
 RUN  cargo build

@@ -5,3 +5,7 @@ version = 3
 [[package]]
 name = "brstack"
 version = "0.1.0"
+
+[[package]]
+name = "ethernet"
+version = "0.1.0"

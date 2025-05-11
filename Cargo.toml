@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["app"]
+members = ["app","protocol/*"]
 resolver = "2"
 
 [workspace.package]
@@ -26,3 +26,7 @@ rust-version = "1.82"
 # logger
 log = "0.4.25"
 env_logger = "0.11.6"
+
+# protocol
+## Ethernet
+ethernet = { path = "protocol/ethernet" }
