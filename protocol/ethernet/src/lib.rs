@@ -1,5 +1,8 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+
+pub struct NetworkInterface {
+    pub name: String,
+    pub mac_address: net_common::MacAddress,
+    pub ipv4_address: net_common::Ipv4Prefix,
 }
 
 #[cfg(test)]
@@ -8,7 +11,5 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
     }
 }
