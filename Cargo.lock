@@ -7,5 +7,9 @@ name = "brstack"
 version = "0.1.0"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+
+[[package]]
 name = "ethernet"
 version = "0.1.0"
