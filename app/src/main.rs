@@ -36,5 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     print!("{:02x} ", byte);
   }
   println!();
+  let frame = ethernet::frame::EthernetFrame::decode_exact(&buf).expect("Failed to decode Ethernet frame");
+  println!("Decoded Ethernet frame: {:x?}", frame);
   Ok(())
 }

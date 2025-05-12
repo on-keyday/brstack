@@ -1,4 +1,4 @@
-
+pub mod frame;
 pub struct NetworkInterface {
     pub name: String,
     pub mac_address: net_common::MacAddress,
