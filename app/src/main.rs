@@ -38,5 +38,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   println!();
   let frame = ethernet::frame::EthernetFrame::decode_exact(&buf).expect("Failed to decode Ethernet frame");
   println!("Decoded Ethernet frame: {:x?}", frame);
+  let reencoded = frame.encode_to_vec().expect("Failed to encode Ethernet frame");
+  println!("Reencoded bytes: {:x?}", reencoded);
+  if reencoded != buf {
+    println!("Reencoded bytes do not match original bytes");
+  } else {
+    println!("Reencoded bytes match original bytes");
+  }
   Ok(())
 }
