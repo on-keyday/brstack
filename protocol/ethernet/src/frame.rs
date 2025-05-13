@@ -22,6 +22,19 @@ impl std::fmt::Display for Error {
         }
     }
 }
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::IOError(_,e) => Some(e),
+            Error::TryFromIntError(e) => Some(e),
+            Error::PropertySetterError(_) => None,
+            Error::ArrayLengthMismatch(_,_,_) => None,
+            Error::AssertError(_) => None,
+            Error::InvalidUnionVariant(_) => None,
+            Error::BackwardError(_,_) => None,
+        }
+    }
+}
 impl From<std::num::TryFromIntError> for Error {
     fn from(e: std::num::TryFromIntError) -> Self {
         Error::TryFromIntError(e)
@@ -72,35 +85,38 @@ impl std::convert::From<EtherType> for u16 {
 }
 /* Unimplemented op: DECLARE_FORMAT */
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-struct Variant18 {
-    pub data: std::vec::Vec<u8>,
+struct Variant18<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+    pub data: std::borrow::Cow<'a,[u8]>,
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-struct Variant21 {
-    pub data: std::vec::Vec<u8>,
+struct Variant21<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+    pub data: std::borrow::Cow<'a,[u8]>,
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-enum Variant17 {
+enum Variant17<'a> {
     #[default]
     None,
-    Variant18(Variant18),
-    Variant21(Variant21),
+    Variant18(Variant18<'a>),
+    Variant21(Variant21<'a>),
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-pub struct EthernetFrame {
+pub struct EthernetFrame<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
     /* Unimplemented op: DEFINE_ENCODER */
     /* Unimplemented op: DEFINE_DECODER */
     pub dst_mac: [u8; 6],
     pub src_mac: [u8; 6],
     pub ether_type: EtherType,
-    pub field16: Variant17,
+    pub field16: Variant17<'a>,
 }
 /* Unimplemented op: ENCODER_PARAMETER */
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: DEFINE_FALLBACK */
 /* Unimplemented op: END_FALLBACK */
 /* Unimplemented op: END_COND_BLOCK */
-impl EthernetFrame {
+impl <'a>EthernetFrame<'a> {
     pub fn encode_to_vec(&self) -> std::result::Result<Vec<u8>, Error> {
         let mut w = std::io::Cursor::new(Vec::new());
         self.encode(&mut w
@@ -152,7 +168,7 @@ impl EthernetFrame {
 /* Unimplemented op: DEFINE_FALLBACK */
 /* Unimplemented op: END_FALLBACK */
 /* Unimplemented op: END_COND_BLOCK */
-impl EthernetFrame {
+impl <'a>EthernetFrame<'a> {
     pub fn decode_slice<'b>(data :&'b [u8]) -> Result<(Self,&'b [u8]), Error> {
         let mut r = std::io::Cursor::new(data);
         let mut result = Self::default();
@@ -186,22 +202,22 @@ impl EthernetFrame {
             if !matches!(self.field16,Variant17::Variant18(_)) {
                 self.field16 = Variant17::Variant18(Variant18::default());
             }
-            r.read_to_end(&mut match &mut self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data",e))?;
+            r.read_to_end(match &mut self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data",e))?;
         } else {
             if !matches!(self.field16,Variant17::Variant21(_)) {
                 self.field16 = Variant17::Variant21(Variant21::default());
             }
             let mut tmp58 = len;
-            match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.resize(tmp58 as usize,0);
-            r.read_exact(&mut match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data",e))?;
+            match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.to_mut().resize(tmp58 as usize,0);
+            r.read_exact(match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data",e))?;
         }
         return Ok(());
     }
 }
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
-impl EthernetFrame {
-    pub fn data(&self) -> std::option::Option<&std::vec::Vec<u8>> {
+impl <'a>EthernetFrame<'a> {
+    pub fn data(&self) -> std::option::Option<&std::borrow::Cow<'a,[u8]>> {
         let mut len = u16::from(self.ether_type);
         if (len >= 1536) {
             if !matches!(self.field16,Variant17::Variant18(_)) {
@@ -220,8 +236,8 @@ impl EthernetFrame {
 }
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
-impl EthernetFrame {
-    pub fn set_data(&mut self, param65: std::vec::Vec<u8>) -> std::result::Result<(), Error> {
+impl <'a>EthernetFrame<'a> {
+    pub fn set_data(&mut self, param65: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
         let mut len = u16::from(self.ether_type);
         if (len >= 1536) {
             if !matches!(self.field16,Variant17::Variant18(_)) {

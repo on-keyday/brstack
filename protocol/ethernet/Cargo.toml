@@ -17,9 +17,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-net_common = { path = "../net_common" }
-socket2 = "0.5.9"
-tokio = { version = "1", features = ["net"] }
-tokio-macros = "2.5.0"
-[dev-dependencies]
+socket2 =  {version="0.5.9",features=["all"]}
+libc = "0"
 tokio = { version = "1", features = ["full"] }
+net_common = { path="../net_common" }
