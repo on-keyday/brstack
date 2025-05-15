@@ -1,15 +1,36 @@
 
+
+fn get_if_addr(if_name: &str) -> Result<net_common::Ipv4Prefix, std::io::Error> {
+    let if_addrs = if_addrs::get_if_addrs()?;
+    for if_addr in if_addrs {
+        if if_addr.name == if_name {
+            if let if_addrs::IfAddr::V4(addr) = if_addr.addr {
+                return Ok(net_common::Ipv4Prefix::new(
+                    addr.ip.octets()[0],
+                    addr.ip.octets()[1],
+                    addr.ip.octets()[2],
+                    addr.ip.octets()[3],
+                    addr.prefixlen,
+                ));
+            }
+        }
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "Interface not found",
+    ))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  let addr = get_if_addr("eth0")?;
   // Raw Socketの作成 
-  let iface= ethernet::NetworkInterface::new(String::from("eth0"),
-                                  net_common::MacAddress::new(0x00, 0x11, 0x22, 0x33, 0x44, 0x55),
-                                  net_common::Ipv4Prefix::new(192, 168, 1, 1, 24))?;
-  
+  let iface= ethernet::NetworkInterface::new(String::from("eth0"), addr)?;
   let sender=iface.clone();
   tokio::spawn(async move {
     loop {
       sender.send(ethernet::frame::EtherType::BRSTACK,
+        // 相手のMACアドレスがわからないのでブロードキャストアドレスを指定
         &net_common::MacAddress::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         // 規格上は最低46バイト必要だがDocker上ではそれより小さくても普通に通信できる
         b"Hello brstack"

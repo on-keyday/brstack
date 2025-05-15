@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{os::fd::{AsFd, AsRawFd}, sync::Arc};
 pub mod frame;
 
 
@@ -52,7 +52,7 @@ impl std::error::Error for Error {
 }
 
 impl NetworkInterface {
-    pub fn new(name :String,mac_address: net_common::MacAddress,ipv4_address: net_common::Ipv4Prefix) ->  Result<Self, Error> {
+    pub fn new(name :String,ipv4_address: net_common::Ipv4Prefix) ->  Result<Self, Error> {
         let socket=   socket2::Socket::new(socket2::Domain::PACKET,socket2::Type::RAW,Some(socket2::Protocol::from(libc::ETH_P_ALL)))?;
         socket.set_nonblocking(true)?;
         // ネットワークインターフェース名(eth0)からネットワークインターフェースのインデックスを取得
@@ -60,6 +60,29 @@ impl NetworkInterface {
         if if_index == 0 {
             return Err(Error::Socket(tokio::io::Error::from_raw_os_error(libc::ENODEV)));
         }
+        // ネットワークインターフェースからMACアドレスを取得
+        let mac_address = unsafe {
+            let mut name_buf = [0i8;libc::IFNAMSIZ];
+            name.as_bytes().iter().enumerate().for_each(|(i, &b)| {
+                name_buf[i] = b as i8;
+            });
+            let mut req = libc::ifreq {
+                ifr_name:name_buf,
+                ifr_ifru: libc::__c_anonymous_ifr_ifru {
+                    ifru_hwaddr: libc::sockaddr {
+                        sa_family: libc::AF_PACKET as u16,
+                        sa_data: [0; 14],
+                    },
+                }
+            };
+            let ret =  libc::ioctl(socket.as_raw_fd(),libc::SIOCGIFHWADDR,&mut req as *mut libc::ifreq);
+            if ret < 0 {
+                return Err(Error::Socket(tokio::io::Error::last_os_error()));
+            }
+            let mut mac = [0u8; 6];
+            mac.copy_from_slice(std::mem::transmute(&req.ifr_ifru.ifru_hwaddr.sa_data[0..6]));
+            net_common::MacAddress(mac)
+        };
         let mut storage : libc::sockaddr_storage  = unsafe { std::mem::zeroed() };
         // C言語の (struct sockaddr_ll*)&storage 相当の処理
         let sockaddr = unsafe { &mut *((&mut storage) as *const libc::sockaddr_storage as *mut libc::sockaddr_ll) };
@@ -72,8 +95,7 @@ impl NetworkInterface {
         socket.bind(&sockaddr)?;
         // ソケットを非同期にする   
         let socket = tokio::io::unix::AsyncFd::new(socket)?;
-    
-
+        
         Ok(NetworkInterface {
             state: Arc::new(NetworkInterfaceState {
                 name,
