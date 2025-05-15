@@ -11,6 +11,7 @@ pub struct NetworkInterfaceState {
     read_mutex: tokio::sync::Mutex<()>,
 }
 
+#[derive(Clone)]
 pub struct NetworkInterface {
     state :Arc<NetworkInterfaceState>,
 }

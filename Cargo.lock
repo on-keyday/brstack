@@ -49,8 +49,7 @@ name = "brstack"
 version = "0.1.0"
 dependencies = [
  "ethernet",
- "libc",
- "socket2",
+ "net_common",
  "tokio",
 ]
 
@@ -70,10 +69,10 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "ethernet"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "net_common",
  "socket2",
  "tokio",
- "tokio-macros",
 ]
 
 [[package]]

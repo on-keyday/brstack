@@ -17,7 +17,6 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-socket2 =  {version="0.5.9",features=["all"]}
-libc = "0"
 tokio = { version = "1", features = ["full"] }
 ethernet = { path = "../protocol/ethernet" }
+net_common = { path = "../protocol/net_common" }
