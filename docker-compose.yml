@@ -14,3 +14,16 @@ services:
     cap_add:
      - NET_ADMIN # nftablesを使用するために必要
      - NET_RAW # raw socketを使用するために必要
+    networks:
+      - client_server
+
+  server:
+    image: brstack_app:latest
+    cap_add:
+     - NET_ADMIN # nftablesを使用するために必要
+     - NET_RAW # raw socketを使用するために必要
+    networks:
+      - client_server
+
+networks:
+  client_server:

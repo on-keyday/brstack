@@ -52,6 +52,7 @@ pub enum EtherType {
     IPv4 = 2048,
     ARP = 2054,
     IPv6 = 34525,
+    BRSTACK = 45228,
 }
 impl std::fmt::Display for EtherType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -59,6 +60,7 @@ impl std::fmt::Display for EtherType {
             2048 => write!(f, "{}", "IPv4"),
             2054 => write!(f, "{}", "ARP"),
             34525 => write!(f, "{}", "IPv6"),
+            45228 => write!(f, "{}", "BRSTACK"),
             _ => write!(f, "EtherType({})",*self as u16),
         }
     }
@@ -69,6 +71,7 @@ impl EtherType {
             2048 => true,
             2054 => true,
             34525 => true,
+            45228 => true,
             _ => false,
         }
     }
@@ -85,21 +88,21 @@ impl std::convert::From<EtherType> for u16 {
 }
 /* Unimplemented op: DECLARE_FORMAT */
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-struct Variant18<'a> {
+struct Variant20<'a> {
     pub _phantom: std::marker::PhantomData<&'a ()>,
     pub data: std::borrow::Cow<'a,[u8]>,
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-struct Variant21<'a> {
+struct Variant23<'a> {
     pub _phantom: std::marker::PhantomData<&'a ()>,
     pub data: std::borrow::Cow<'a,[u8]>,
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
-enum Variant17<'a> {
+enum Variant19<'a> {
     #[default]
     None,
-    Variant18(Variant18<'a>),
-    Variant21(Variant21<'a>),
+    Variant20(Variant20<'a>),
+    Variant23(Variant23<'a>),
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
 pub struct EthernetFrame<'a> {
@@ -109,7 +112,7 @@ pub struct EthernetFrame<'a> {
     pub dst_mac: [u8; 6],
     pub src_mac: [u8; 6],
     pub ether_type: EtherType,
-    pub field16: Variant17<'a>,
+    pub field18: Variant19<'a>,
 }
 /* Unimplemented op: ENCODER_PARAMETER */
 /* Unimplemented op: RETURN_TYPE */
@@ -134,31 +137,31 @@ impl <'a>EthernetFrame<'a> {
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
         w.write_all(&self.dst_mac[0..6 as usize]).map_err(|e| Error::IOError("self.dst_mac",e))?;
         w.write_all(&self.src_mac[0..6 as usize]).map_err(|e| Error::IOError("self.src_mac",e))?;
-        let mut tmp73 = <[u8; 2]>::default();
-        let mut tmp77 = 0;
-        while((tmp77 < 2)) {
-            (tmp73)[tmp77 as usize] = (((u16::from(self.ether_type) >> ((1 - tmp77) * 8)) & 255) as u8);
-            tmp77+= 1;
+        let mut tmp75 = <[u8; 2]>::default();
+        let mut tmp79 = 0;
+        while((tmp79 < 2)) {
+            (tmp75)[tmp79 as usize] = (((u16::from(self.ether_type) >> ((1 - tmp79) * 8)) & 255) as u8);
+            tmp79+= 1;
         }
-        w.write_all(&tmp73[0..2 as usize]).map_err(|e| Error::IOError("self.ether_type",e))?;
+        w.write_all(&tmp75[0..2 as usize]).map_err(|e| Error::IOError("self.ether_type",e))?;
         let mut len = u16::from(self.ether_type);
         if(!((len <= 1500) || (len >= 1536))) { 
         return Err(Error::AssertError("((len <= 1500) || (len >= 1536))"));
         }
         if (len >= 1536) {
-            if !matches!(self.field16,Variant17::Variant18(_)) {
-                return Err(Error::InvalidUnionVariant("Variant17::Variant18"));
+            if !matches!(self.field18,Variant19::Variant20(_)) {
+                return Err(Error::InvalidUnionVariant("Variant19::Variant20"));
             }
-            w.write_all(&match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data[0..match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data",e))?;
+            w.write_all(&match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data[0..match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data",e))?;
         } else {
-            if !matches!(self.field16,Variant17::Variant21(_)) {
-                return Err(Error::InvalidUnionVariant("Variant17::Variant21"));
+            if !matches!(self.field18,Variant19::Variant23(_)) {
+                return Err(Error::InvalidUnionVariant("Variant19::Variant23"));
             }
-            let mut tmp46 = len;
-            if match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.len() != tmp46 as usize {
-            return Err(Error::ArrayLengthMismatch("encode match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data", tmp46 as usize, match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.len()));
+            let mut tmp48 = len;
+            if match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len() != tmp48 as usize {
+            return Err(Error::ArrayLengthMismatch("encode match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data", tmp48 as usize, match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len()));
             }
-            w.write_all(&match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data[0..match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data",e))?;
+            w.write_all(&match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data[0..match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data",e))?;
         }
         return Ok(());
     }
@@ -185,31 +188,31 @@ impl <'a>EthernetFrame<'a> {
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         r.read_exact(&mut self.dst_mac[0..6 as usize]).map_err(|e| Error::IOError("self.dst_mac",e))?;
         r.read_exact(&mut self.src_mac[0..6 as usize]).map_err(|e| Error::IOError("self.src_mac",e))?;
-        let mut tmp49 = <u16>::default();
-        let mut tmp92 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp92[0..2 as usize]).map_err(|e| Error::IOError("self.ether_type",e))?;
-        let mut tmp93 = 0;
-        while((tmp93 < 2)) {
-            tmp49 = (tmp49 | (((tmp92)[tmp93 as usize] as u16) << ((1 - tmp93) * 8)));
-            tmp93+= 1;
+        let mut tmp51 = <u16>::default();
+        let mut tmp94 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp94[0..2 as usize]).map_err(|e| Error::IOError("self.ether_type",e))?;
+        let mut tmp95 = 0;
+        while((tmp95 < 2)) {
+            tmp51 = (tmp51 | (((tmp94)[tmp95 as usize] as u16) << ((1 - tmp95) * 8)));
+            tmp95+= 1;
         }
-        self.ether_type = EtherType::from(tmp49);
+        self.ether_type = EtherType::from(tmp51);
         let mut len = u16::from(self.ether_type);
         if(!((len <= 1500) || (len >= 1536))) { 
         return Err(Error::AssertError("((len <= 1500) || (len >= 1536))"));
         }
         if (len >= 1536) {
-            if !matches!(self.field16,Variant17::Variant18(_)) {
-                self.field16 = Variant17::Variant18(Variant18::default());
+            if !matches!(self.field18,Variant19::Variant20(_)) {
+                self.field18 = Variant19::Variant20(Variant20::default());
             }
-            r.read_to_end(match &mut self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data",e))?;
+            r.read_to_end(match &mut self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data",e))?;
         } else {
-            if !matches!(self.field16,Variant17::Variant21(_)) {
-                self.field16 = Variant17::Variant21(Variant21::default());
+            if !matches!(self.field18,Variant19::Variant23(_)) {
+                self.field18 = Variant19::Variant23(Variant23::default());
             }
-            let mut tmp58 = len;
-            match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.to_mut().resize(tmp58 as usize,0);
-            r.read_exact(match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data",e))?;
+            let mut tmp60 = len;
+            match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.to_mut().resize(tmp60 as usize,0);
+            r.read_exact(match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data",e))?;
         }
         return Ok(());
     }
@@ -220,16 +223,16 @@ impl <'a>EthernetFrame<'a> {
     pub fn data(&self) -> std::option::Option<&std::borrow::Cow<'a,[u8]>> {
         let mut len = u16::from(self.ether_type);
         if (len >= 1536) {
-            if !matches!(self.field16,Variant17::Variant18(_)) {
+            if !matches!(self.field18,Variant19::Variant20(_)) {
                 return None;
             }
-            return Some(&match &self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data);
+            return Some(&match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data);
         }
         if true {
-            if !matches!(self.field16,Variant17::Variant21(_)) {
+            if !matches!(self.field18,Variant19::Variant23(_)) {
                 return None;
             }
-            return Some(&match &self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data);
+            return Some(&match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data);
         }
         return None;
     }
@@ -237,20 +240,20 @@ impl <'a>EthernetFrame<'a> {
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
 impl <'a>EthernetFrame<'a> {
-    pub fn set_data(&mut self, param65: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
+    pub fn set_data(&mut self, param67: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
         let mut len = u16::from(self.ether_type);
         if (len >= 1536) {
-            if !matches!(self.field16,Variant17::Variant18(_)) {
-                self.field16 = Variant17::Variant18(Variant18::default());
+            if !matches!(self.field18,Variant19::Variant20(_)) {
+                self.field18 = Variant19::Variant20(Variant20::default());
             }
-            match &mut self.field16 {  Variant17::Variant18(x) => x, _ => unreachable!() }.data = param65;
+            match &mut self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data = param67;
             return Ok(());
         }
         if true {
-            if !matches!(self.field16,Variant17::Variant21(_)) {
-                self.field16 = Variant17::Variant21(Variant21::default());
+            if !matches!(self.field18,Variant19::Variant23(_)) {
+                self.field18 = Variant19::Variant23(Variant23::default());
             }
-            match &mut self.field16 {  Variant17::Variant21(x) => x, _ => unreachable!() }.data = param65;
+            match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data = param67;
             return Ok(());
         }
         return Err(Error::PropertySetterError("data"));

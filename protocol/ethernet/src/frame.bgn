@@ -3,6 +3,7 @@ enum EtherType:
     IPv4 = 0x0800
     ARP = 0x0806
     IPv6 = 0x86DD
+    BRSTACK = 0xB0AC # Custom protocol
 
 format EthernetFrame:
     dst_mac :[6]u8
