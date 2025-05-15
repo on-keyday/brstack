@@ -23,6 +23,7 @@ fn get_if_addr(if_name: &str) -> Result<net_common::Ipv4Prefix, std::io::Error> 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  env_logger::init();
   let addr = get_if_addr("eth0")?;
   // Raw Socketの作成 
   let iface= ethernet::NetworkInterface::new(String::from("eth0"), addr)?;
@@ -41,9 +42,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   loop {
     // ソケットから受信する
     let frame =  iface.recv().await?;
-    println!("Received {} bytes",14 + frame.data().unwrap().len());
-    println!("Decoded Ethernet frame: {:x?}", frame);
+    // 受信したフレームのデータを表示する
+    log::info!("Received frame: {:?}", frame);
     let reencoded = frame.encode_to_vec()?;
-    println!("Raw bytes: len {} {:x?}",reencoded.len(), reencoded);
+    log::info!("Raw bytes: len {} {:x?}",reencoded.len(), reencoded);
   }
 }
