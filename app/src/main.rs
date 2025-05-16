@@ -23,10 +23,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       loop {
         let receive_single :Result<(), Box<dyn std::error::Error>> = async {
           let frame = receiver.recv().await?;
-          if receiver.name()!="lo" && frame.src_mac == receiver.mac_address().0 {
-            // 自分のMACアドレスからのフレームは無視(ループバックインターフェースのフレームは例外)
-            return Ok(());
-          }
           log::info!("Received frame: {} {:?}",receiver.name(), frame);
           let reencoded = frame.encode_to_vec()?;
           log::info!("Raw bytes: {} len {} {:x?}",receiver.name(), reencoded.len(), reencoded);
