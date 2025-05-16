@@ -1,31 +1,9 @@
 
 
-
-
-fn get_interfaces() -> Result<Vec<ethernet::NetworkInterface>, Box<dyn std::error::Error>> {
-    let mut interfaces = Vec::new();
-    // ifaddrs::get_if_addrs()は、全てのインターフェースの情報を取得する
-    let if_addrs = if_addrs::get_if_addrs()?;
-    for if_addr in if_addrs {
-      if let if_addrs::IfAddr::V4(addr) = if_addr.addr {
-        let prefix = net_common::Ipv4Prefix::new(
-            addr.ip.octets()[0],
-            addr.ip.octets()[1],
-            addr.ip.octets()[2],
-            addr.ip.octets()[3],
-            addr.prefixlen,
-        );
-        let iface = ethernet::NetworkInterface::new(if_addr.name, prefix)?;
-        interfaces.push(iface);
-      }
-    }
-    Ok(interfaces)
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   env_logger::init();
-  let interfaces = get_interfaces()?;
+  let interfaces = ethernet::get_interfaces()?;
   for iface in interfaces {
     let sender = iface.clone();
     tokio::spawn(async move {
