@@ -81,7 +81,9 @@ name = "arp"
 version = "0.1.0"
 dependencies = [
  "ethernet",
+ "log",
  "net_common",
+ "tokio",
 ]
 
 [[package]]

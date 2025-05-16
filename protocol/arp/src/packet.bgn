@@ -14,3 +14,4 @@ format ArpPacket:
     target_hardware_address :[hardware_len]u8
     target_protocol_address :[protocol_len]u8
 
+HARDWARE_TYPE_ETHERNET ::= u16(1)

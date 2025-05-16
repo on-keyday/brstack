@@ -80,7 +80,11 @@ impl std::convert::From<Operation> for u16 {
         unsafe { std::mem::transmute(e) }
     }
 }
+/* Unimplemented op: CAST */
+pub const HARDWARE_TYPE_ETHERNET: u16 = 1;
 /* Unimplemented op: DECLARE_FORMAT */
+/* Unimplemented op: CAST */
+/* Unimplemented op: DEFINE_CONSTANT */
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
 pub struct ArpPacket<'a> {
     pub _phantom: std::marker::PhantomData<&'a ()>,
@@ -124,51 +128,51 @@ impl <'a>ArpPacket<'a> {
         Ok(&data[0..written])
     }
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        let mut tmp75 = <[u8; 2]>::default();
-        let mut tmp78 = 0;
-        while((tmp78 < 2)) {
-            (tmp75)[tmp78 as usize] = (((self.hardware_type >> ((1 - tmp78) * 8)) & 255) as u8);
-            tmp78+= 1;
+        let mut tmp80 = <[u8; 2]>::default();
+        let mut tmp83 = 0;
+        while((tmp83 < 2)) {
+            (tmp80)[tmp83 as usize] = (((self.hardware_type >> ((1 - tmp83) * 8)) & 255) as u8);
+            tmp83+= 1;
         }
-        w.write_all(&tmp75[0..2 as usize]).map_err(|e| Error::IOError("self.hardware_type",e))?;
-        let mut tmp90 = <[u8; 2]>::default();
-        let mut tmp91 = 0;
-        while((tmp91 < 2)) {
-            (tmp90)[tmp91 as usize] = (((self.protocol_type >> ((1 - tmp91) * 8)) & 255) as u8);
-            tmp91+= 1;
+        w.write_all(&tmp80[0..2 as usize]).map_err(|e| Error::IOError("self.hardware_type",e))?;
+        let mut tmp95 = <[u8; 2]>::default();
+        let mut tmp96 = 0;
+        while((tmp96 < 2)) {
+            (tmp95)[tmp96 as usize] = (((self.protocol_type >> ((1 - tmp96) * 8)) & 255) as u8);
+            tmp96+= 1;
         }
-        w.write_all(&tmp90[0..2 as usize]).map_err(|e| Error::IOError("self.protocol_type",e))?;
-        let mut tmp103 = <[u8; 1]>::default();
-        (tmp103)[0 as usize] = self.hardware_len;
-        w.write_all(&tmp103[0..1 as usize]).map_err(|e| Error::IOError("self.hardware_len",e))?;
+        w.write_all(&tmp95[0..2 as usize]).map_err(|e| Error::IOError("self.protocol_type",e))?;
         let mut tmp108 = <[u8; 1]>::default();
-        (tmp108)[0 as usize] = self.protocol_len;
-        w.write_all(&tmp108[0..1 as usize]).map_err(|e| Error::IOError("self.protocol_len",e))?;
-        let mut tmp113 = <[u8; 2]>::default();
-        let mut tmp114 = 0;
-        while((tmp114 < 2)) {
-            (tmp113)[tmp114 as usize] = (((u16::from(self.operation) >> ((1 - tmp114) * 8)) & 255) as u8);
-            tmp114+= 1;
+        (tmp108)[0 as usize] = self.hardware_len;
+        w.write_all(&tmp108[0..1 as usize]).map_err(|e| Error::IOError("self.hardware_len",e))?;
+        let mut tmp113 = <[u8; 1]>::default();
+        (tmp113)[0 as usize] = self.protocol_len;
+        w.write_all(&tmp113[0..1 as usize]).map_err(|e| Error::IOError("self.protocol_len",e))?;
+        let mut tmp118 = <[u8; 2]>::default();
+        let mut tmp119 = 0;
+        while((tmp119 < 2)) {
+            (tmp118)[tmp119 as usize] = (((u16::from(self.operation) >> ((1 - tmp119) * 8)) & 255) as u8);
+            tmp119+= 1;
         }
-        w.write_all(&tmp113[0..2 as usize]).map_err(|e| Error::IOError("self.operation",e))?;
-        let mut tmp25 = self.hardware_len;
-        if self.source_hardware_address.len() != tmp25 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.source_hardware_address", tmp25 as usize, self.source_hardware_address.len()));
+        w.write_all(&tmp118[0..2 as usize]).map_err(|e| Error::IOError("self.operation",e))?;
+        let mut tmp28 = self.hardware_len;
+        if self.source_hardware_address.len() != tmp28 as usize {
+        return Err(Error::ArrayLengthMismatch("encode self.source_hardware_address", tmp28 as usize, self.source_hardware_address.len()));
         }
         w.write_all(&self.source_hardware_address[0..self.source_hardware_address.len() as usize]).map_err(|e| Error::IOError("self.source_hardware_address",e))?;
-        let mut tmp27 = self.protocol_len;
-        if self.source_protocol_address.len() != tmp27 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.source_protocol_address", tmp27 as usize, self.source_protocol_address.len()));
+        let mut tmp30 = self.protocol_len;
+        if self.source_protocol_address.len() != tmp30 as usize {
+        return Err(Error::ArrayLengthMismatch("encode self.source_protocol_address", tmp30 as usize, self.source_protocol_address.len()));
         }
         w.write_all(&self.source_protocol_address[0..self.source_protocol_address.len() as usize]).map_err(|e| Error::IOError("self.source_protocol_address",e))?;
-        let mut tmp29 = self.hardware_len;
-        if self.target_hardware_address.len() != tmp29 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.target_hardware_address", tmp29 as usize, self.target_hardware_address.len()));
+        let mut tmp32 = self.hardware_len;
+        if self.target_hardware_address.len() != tmp32 as usize {
+        return Err(Error::ArrayLengthMismatch("encode self.target_hardware_address", tmp32 as usize, self.target_hardware_address.len()));
         }
         w.write_all(&self.target_hardware_address[0..self.target_hardware_address.len() as usize]).map_err(|e| Error::IOError("self.target_hardware_address",e))?;
-        let mut tmp31 = self.protocol_len;
-        if self.target_protocol_address.len() != tmp31 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.target_protocol_address", tmp31 as usize, self.target_protocol_address.len()));
+        let mut tmp34 = self.protocol_len;
+        if self.target_protocol_address.len() != tmp34 as usize {
+        return Err(Error::ArrayLengthMismatch("encode self.target_protocol_address", tmp34 as usize, self.target_protocol_address.len()));
         }
         w.write_all(&self.target_protocol_address[0..self.target_protocol_address.len() as usize]).map_err(|e| Error::IOError("self.target_protocol_address",e))?;
         return Ok(());
@@ -201,46 +205,46 @@ impl <'a>ArpPacket<'a> {
         Ok(result)
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        let mut tmp125 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp125[0..2 as usize]).map_err(|e| Error::IOError("self.hardware_type",e))?;
-        let mut tmp126 = 0;
-        while((tmp126 < 2)) {
-            self.hardware_type = (self.hardware_type | (((tmp125)[tmp126 as usize] as u16) << ((1 - tmp126) * 8)));
-            tmp126+= 1;
+        let mut tmp130 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp130[0..2 as usize]).map_err(|e| Error::IOError("self.hardware_type",e))?;
+        let mut tmp131 = 0;
+        while((tmp131 < 2)) {
+            self.hardware_type = (self.hardware_type | (((tmp130)[tmp131 as usize] as u16) << ((1 - tmp131) * 8)));
+            tmp131+= 1;
         }
-        let mut tmp137 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp137[0..2 as usize]).map_err(|e| Error::IOError("self.protocol_type",e))?;
-        let mut tmp138 = 0;
-        while((tmp138 < 2)) {
-            self.protocol_type = (self.protocol_type | (((tmp137)[tmp138 as usize] as u16) << ((1 - tmp138) * 8)));
-            tmp138+= 1;
+        let mut tmp142 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp142[0..2 as usize]).map_err(|e| Error::IOError("self.protocol_type",e))?;
+        let mut tmp143 = 0;
+        while((tmp143 < 2)) {
+            self.protocol_type = (self.protocol_type | (((tmp142)[tmp143 as usize] as u16) << ((1 - tmp143) * 8)));
+            tmp143+= 1;
         }
-        let mut tmp149 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp149[0..1 as usize]).map_err(|e| Error::IOError("self.hardware_len",e))?;
-        self.hardware_len = (tmp149)[0 as usize];
         let mut tmp154 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp154[0..1 as usize]).map_err(|e| Error::IOError("self.protocol_len",e))?;
-        self.protocol_len = (tmp154)[0 as usize];
-        let mut tmp34 = <u16>::default();
-        let mut tmp159 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp159[0..2 as usize]).map_err(|e| Error::IOError("self.operation",e))?;
-        let mut tmp160 = 0;
-        while((tmp160 < 2)) {
-            tmp34 = (tmp34 | (((tmp159)[tmp160 as usize] as u16) << ((1 - tmp160) * 8)));
-            tmp160+= 1;
+        r.read_exact(&mut tmp154[0..1 as usize]).map_err(|e| Error::IOError("self.hardware_len",e))?;
+        self.hardware_len = (tmp154)[0 as usize];
+        let mut tmp159 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp159[0..1 as usize]).map_err(|e| Error::IOError("self.protocol_len",e))?;
+        self.protocol_len = (tmp159)[0 as usize];
+        let mut tmp38 = <u16>::default();
+        let mut tmp164 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp164[0..2 as usize]).map_err(|e| Error::IOError("self.operation",e))?;
+        let mut tmp165 = 0;
+        while((tmp165 < 2)) {
+            tmp38 = (tmp38 | (((tmp164)[tmp165 as usize] as u16) << ((1 - tmp165) * 8)));
+            tmp165+= 1;
         }
-        self.operation = Operation::from(tmp34);
-        let mut tmp37 = self.hardware_len;
-        self.source_hardware_address.to_mut().resize(tmp37 as usize,0);
+        self.operation = Operation::from(tmp38);
+        let mut tmp41 = self.hardware_len;
+        self.source_hardware_address.to_mut().resize(tmp41 as usize,0);
         r.read_exact(self.source_hardware_address.to_mut()).map_err(|e| Error::IOError("self.source_hardware_address",e))?;
-        let mut tmp38 = self.protocol_len;
-        self.source_protocol_address.to_mut().resize(tmp38 as usize,0);
+        let mut tmp42 = self.protocol_len;
+        self.source_protocol_address.to_mut().resize(tmp42 as usize,0);
         r.read_exact(self.source_protocol_address.to_mut()).map_err(|e| Error::IOError("self.source_protocol_address",e))?;
-        let mut tmp39 = self.hardware_len;
-        self.target_hardware_address.to_mut().resize(tmp39 as usize,0);
+        let mut tmp43 = self.hardware_len;
+        self.target_hardware_address.to_mut().resize(tmp43 as usize,0);
         r.read_exact(self.target_hardware_address.to_mut()).map_err(|e| Error::IOError("self.target_hardware_address",e))?;
-        let mut tmp40 = self.protocol_len;
-        self.target_protocol_address.to_mut().resize(tmp40 as usize,0);
+        let mut tmp44 = self.protocol_len;
+        self.target_protocol_address.to_mut().resize(tmp44 as usize,0);
         r.read_exact(self.target_protocol_address.to_mut()).map_err(|e| Error::IOError("self.target_protocol_address",e))?;
         return Ok(());
     }
@@ -248,48 +252,48 @@ impl <'a>ArpPacket<'a> {
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
 impl <'a>ArpPacket<'a> {
-    pub fn set_source_hardware_address(&mut self, param45: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
-        if(!(param45.len() <= 255)) { 
-        return Err(Error::AssertError("(param45.len() <= 255)"));
+    pub fn set_source_hardware_address(&mut self, param50: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
+        if(!(param50.len() <= 255)) { 
+        return Err(Error::AssertError("(param50.len() <= 255)"));
         }
-        self.hardware_len = (param45.len() as u8);
-        self.source_hardware_address = param45;
+        self.hardware_len = (param50.len() as u8);
+        self.source_hardware_address = param50;
         return Ok(());
     }
 }
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
 impl <'a>ArpPacket<'a> {
-    pub fn set_source_protocol_address(&mut self, param54: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
-        if(!(param54.len() <= 255)) { 
-        return Err(Error::AssertError("(param54.len() <= 255)"));
+    pub fn set_source_protocol_address(&mut self, param59: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
+        if(!(param59.len() <= 255)) { 
+        return Err(Error::AssertError("(param59.len() <= 255)"));
         }
-        self.protocol_len = (param54.len() as u8);
-        self.source_protocol_address = param54;
+        self.protocol_len = (param59.len() as u8);
+        self.source_protocol_address = param59;
         return Ok(());
     }
 }
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
 impl <'a>ArpPacket<'a> {
-    pub fn set_target_hardware_address(&mut self, param60: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
-        if(!(param60.len() <= 255)) { 
-        return Err(Error::AssertError("(param60.len() <= 255)"));
+    pub fn set_target_hardware_address(&mut self, param65: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
+        if(!(param65.len() <= 255)) { 
+        return Err(Error::AssertError("(param65.len() <= 255)"));
         }
-        self.hardware_len = (param60.len() as u8);
-        self.target_hardware_address = param60;
+        self.hardware_len = (param65.len() as u8);
+        self.target_hardware_address = param65;
         return Ok(());
     }
 }
 /* Unimplemented op: RETURN_TYPE */
 /* Unimplemented op: PROPERTY_FUNCTION */
 impl <'a>ArpPacket<'a> {
-    pub fn set_target_protocol_address(&mut self, param66: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
-        if(!(param66.len() <= 255)) { 
-        return Err(Error::AssertError("(param66.len() <= 255)"));
+    pub fn set_target_protocol_address(&mut self, param71: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
+        if(!(param71.len() <= 255)) { 
+        return Err(Error::AssertError("(param71.len() <= 255)"));
         }
-        self.protocol_len = (param66.len() as u8);
-        self.target_protocol_address = param66;
+        self.protocol_len = (param71.len() as u8);
+        self.target_protocol_address = param71;
         return Ok(());
     }
 }

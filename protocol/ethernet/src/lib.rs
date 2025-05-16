@@ -1,7 +1,7 @@
 use std::{os::fd::AsRawFd, str::FromStr, sync::Arc};
 pub mod frame;
 
-
+#[derive(Debug)]
 pub struct NetworkInterfaceState {
     name: String,
     mac_address: net_common::MacAddress,
@@ -11,7 +11,7 @@ pub struct NetworkInterfaceState {
     read_mutex: tokio::sync::Mutex<()>,
 }
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub struct NetworkInterface {
     state :Arc<NetworkInterfaceState>,
 }

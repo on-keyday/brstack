@@ -1,4 +1,5 @@
 
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub struct MacAddress(pub [u8; 6]);
 
 impl MacAddress {
@@ -14,11 +15,18 @@ impl std::fmt::Display for MacAddress {
     }
 }
 
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub struct Ipv4Address(pub [u8; 4]);
 
 impl Ipv4Address {
     pub fn new(a: u8, b: u8, c: u8, d: u8) -> Self {
         Self([a, b, c, d])
+    }
+}
+
+impl std::hash::Hash for Ipv4Address {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write(&self.0);
     }
 }
 
@@ -29,6 +37,7 @@ impl std::fmt::Display for Ipv4Address {
     }
 }
 
+#[derive(Debug, Clone,Copy)]
 pub struct Ipv4Prefix {
     pub address: Ipv4Address,
     pub mask: Ipv4Address,
