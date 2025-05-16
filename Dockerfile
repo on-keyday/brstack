@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     iputils-ping \
     nftables \
+    tcpdump \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./app/ /app/app/
@@ -20,6 +21,6 @@ RUN  cargo build
 RUN cp /app/target/debug/brstack /app/brstack
 COPY ./ruleset.txt /app/ruleset.txt
 COPY ./run.sh /app/run.sh
-ENV RUST_LOG=info
+ENV RUST_LOG=debug
 ENV RUST_BACKTRACE=1
 CMD ["/app/run.sh"]

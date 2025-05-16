@@ -1,4 +1,4 @@
-use std::{os::fd::{AsFd, AsRawFd}, sync::Arc};
+use std::{os::fd::AsRawFd, str::FromStr, sync::Arc};
 pub mod frame;
 
 
@@ -20,6 +20,7 @@ pub struct NetworkInterface {
 pub enum Error{
     Frame(frame::Error),
     Socket(tokio::io::Error),
+    NulError(std::ffi::NulError),
 }
 
 impl From<frame::Error> for Error {
@@ -32,12 +33,19 @@ impl From<tokio::io::Error> for Error {
         Error::Socket(err)
     }
 }
+impl From<std::ffi::NulError> for Error {
+    fn from(err: std::ffi::NulError) -> Self {
+        Error::NulError(err)
+    }
+}
+
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Frame(err) => write!(f, "Frame error: {}", err),
             Error::Socket(err) => write!(f, "Socket error: {}", err),
+            Error::NulError(err) => write!(f, "Nul error: {}", err),
         }
     }
 }
@@ -47,6 +55,7 @@ impl std::error::Error for Error {
         match self {
             Error::Frame(err) => Some(err), 
             Error::Socket(err) => Some(err),
+            Error::NulError(err) => Some(err),
         }
     }
 }
@@ -55,8 +64,9 @@ impl NetworkInterface {
     pub fn new(name :String,ipv4_address: net_common::Ipv4Prefix) ->  Result<Self, Error> {
         let socket=   socket2::Socket::new(socket2::Domain::PACKET,socket2::Type::RAW,Some(socket2::Protocol::from(libc::ETH_P_ALL)))?;
         socket.set_nonblocking(true)?;
-        // ネットワークインターフェース名(eth0)からネットワークインターフェースのインデックスを取得
-        let if_index =unsafe { libc::if_nametoindex(c"eth0".as_ptr() as *const i8)};
+        let c_name =  std::ffi::CString::from_str(&name)?;
+        // ネットワークインターフェース名からネットワークインターフェースのインデックスを取得
+        let if_index =unsafe { libc::if_nametoindex(c_name.as_ptr() as *const i8)};
         if if_index == 0 {
             return Err(Error::Socket(tokio::io::Error::from_raw_os_error(libc::ENODEV)));
         }
@@ -95,6 +105,8 @@ impl NetworkInterface {
         socket.bind(&sockaddr)?;
         // ソケットを非同期にする   
         let socket = tokio::io::unix::AsyncFd::new(socket)?;
+
+        log::debug!("NetworkInterface: {} mac: {} ipv4: {}", name, mac_address, ipv4_address);
         
         Ok(NetworkInterface {
             state: Arc::new(NetworkInterfaceState {

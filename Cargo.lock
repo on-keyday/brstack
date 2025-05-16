@@ -160,7 +160,9 @@ dependencies = [
 name = "ethernet"
 version = "0.1.0"
 dependencies = [
+ "env_logger",
  "libc",
+ "log",
  "net_common",
  "socket2",
  "tokio",
