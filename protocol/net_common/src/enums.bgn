@@ -1,0 +1,8 @@
+config.url = "https://datatracker.ietf.org/doc/html/rfc4861#section-7.3.2"
+enum NeighborCacheState:
+    INCOMPLETE
+    REACHABLE
+    STALE
+    DELAY
+    PROBE
+    FAILED

@@ -79,6 +79,10 @@ dependencies = [
 [[package]]
 name = "arp"
 version = "0.1.0"
+dependencies = [
+ "ethernet",
+ "net_common",
+]
 
 [[package]]
 name = "autocfg"

@@ -17,3 +17,5 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+ethernet = { path ="../ethernet" }
+net_common = { path = "../net_common" }

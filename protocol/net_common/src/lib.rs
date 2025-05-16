@@ -55,3 +55,6 @@ impl std::fmt::Display for Ipv4Prefix {
             self.address, self.prefix_length)
     }
 }
+
+mod enums;
+pub use enums::NeighborCacheState;
