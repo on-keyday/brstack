@@ -4,6 +4,7 @@
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   env_logger::init();
   let interfaces = ethernet::get_interfaces()?;
+  let arp = arp::AddressResolutionTable::new(std::time::Duration::from_secs(60));
   for iface in interfaces {
     let sender = iface.clone();
     tokio::spawn(async move {
@@ -19,17 +20,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       }
     });
     let receiver = iface;
+    let arp = arp.clone();
     tokio::spawn(async move {
+      let receiver = receiver;
       loop {
         let receive_single :Result<(), Box<dyn std::error::Error>> = async {
           let frame = receiver.recv().await?;
           log::info!("Received frame: {} {:?}",receiver.name(), frame);
           let reencoded = frame.encode_to_vec()?;
           log::info!("Raw bytes: {} len {} {:x?}",receiver.name(), reencoded.len(), reencoded);
-          if frame.ether_type == ethernet::frame::EtherType::BRSTACK {
-            let data = frame.data().unwrap();
-            let data = String::from_utf8(data.to_vec())?;
-            log::info!("Received data: {} {:?}", receiver.name(), data);
+          match frame.ether_type {
+            ethernet::frame::EtherType::ARP => {
+              let arp = arp.clone();
+              let receiver = receiver.clone();
+              tokio::spawn(async move {
+                match arp.receive(frame, &receiver).await {
+                  Err(e) => {
+                    log::error!("ARP error: {} {}", receiver.name(), e);
+                  }
+                  _ => {}
+                }
+              });
+            }
+            ethernet::frame::EtherType::BRSTACK => {
+              let data = frame.data().unwrap();
+              let data = String::from_utf8(data.to_vec())?;
+              log::debug!("Received data: {} {:?}", receiver.name(), data);
+            }
+            _ => {}
           }
           Ok(())
         }.await;
@@ -37,7 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           Ok(_) => {},
           Err(e) => {
             log::error!("Error receiving frame: {:?}", e);
-            break;
           }
         }
       }

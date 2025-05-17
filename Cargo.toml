@@ -30,7 +30,8 @@ env_logger = "0.11.6"
 # protocol
 ## Ethernet
 ethernet = { path = "protocol/ethernet" }
-
+## ARP 
+arp = { path = "protocol/arp" }
 
 ## Common Definitions (Addresses, Constants,etc...)
 net_common = { path = "protocol/net_common" }
