@@ -4,6 +4,7 @@ pub mod frame;
 #[derive(Debug)]
 pub struct NetworkInterfaceState {
     name: String,
+    index: u32,
     mac_address: net_common::MacAddress,
     ipv4_address: net_common::Ipv4Prefix,
     socket :tokio::io::unix::AsyncFd<socket2::Socket>,
@@ -111,6 +112,7 @@ impl NetworkInterface {
         Ok(NetworkInterface {
             state: Arc::new(NetworkInterfaceState {
                 name,
+                index: if_index,
                 mac_address,
                 ipv4_address,
                 socket,
@@ -132,6 +134,10 @@ impl NetworkInterface {
         &self.state.name
     }
 
+    pub fn index(&self) -> u32 {
+        self.state.index
+    }
+
     pub async fn send(&self, ether_type :frame::EtherType,dst :&net_common::MacAddress,data :&[u8]) -> Result<(), Error> {
         let mut frame = frame::EthernetFrame::default();
         frame.ether_type = ether_type;
@@ -149,7 +155,7 @@ impl NetworkInterface {
         Ok(())
     }
 
-    pub async fn recv(&self) -> Result<frame::EthernetFrame<'_>, Error> {
+    pub async fn recv(&self) -> Result<frame::EthernetFrame<'static>, Error> {
         let _read_guard = self.state.read_mutex.lock().await;
         let buffer: (usize, [std::mem::MaybeUninit<u8>; 2048]) =  self.state.socket.async_io(tokio::io::Interest::READABLE,|socket| {
             let mut buf = [std::mem::MaybeUninit::<u8>::uninit(); 2048];
