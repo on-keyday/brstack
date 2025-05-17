@@ -172,7 +172,7 @@ impl NetworkInterface {
         };        
         log::debug!("Raw bytes: {} len {} {:x?}",self.name(), buffer.len(), buffer);
         Ok(frame::EthernetFrame::decode_exact(&buffer).map(|frame| {
-             log::debug!("Received frame: {} {:?}",self.name(), frame);
+             log::debug!("Received frame: {} {:x?}",self.name(), frame);
              frame
         })?)
     }
