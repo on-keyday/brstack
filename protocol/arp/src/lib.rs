@@ -10,10 +10,11 @@ struct ArpEntry {
 }
 
 struct AddressResolutionTableState {
-    entries :tokio::sync::RwLock<std::collections::HashMap<net_common::Ipv4Address, ArpEntry>>,
+    entries :tokio::sync::RwLock<std::collections::HashMap<u32, std::collections::HashMap<net_common::Ipv4Address, ArpEntry>>>,
     stale_timeout :std::time::Duration,
 }
 
+#[derive(Clone)]
 pub struct AddressResolutionTable {
     state :std::sync::Arc<AddressResolutionTableState>,
 }
@@ -49,7 +50,10 @@ impl AddressResolutionTable {
 
     pub async fn update_arp_entry(&self,cache_state: net_common::NeighborCacheState,  dst_ip :net_common::Ipv4Address, dst_mac :net_common::MacAddress, device :ethernet::NetworkInterface) {
         let mut entries = self.state.entries.write().await;
-        entries.insert(dst_ip.clone(), ArpEntry {
+        let entry = entries
+            .entry(device.index())
+            .or_insert_with(std::collections::HashMap::new);
+        entry.insert(dst_ip.clone(), ArpEntry {
             dst_ip,
             dst_mac,
             device,
@@ -58,12 +62,14 @@ impl AddressResolutionTable {
         });
     }
 
-    async fn get_arp_entry(&self, dst_ip :&net_common::Ipv4Address) -> Option<ArpEntry> {
+    async fn get_arp_entry(&self,device :&ethernet::NetworkInterface, dst_ip :&net_common::Ipv4Address) -> Option<ArpEntry> {
         let entries = self.state.entries.read().await;
-        entries.get(&dst_ip).cloned()
+        entries.get(&device.index())
+            .and_then(|entry| entry.get(dst_ip))
+            .cloned()
     }
 
-    pub async fn receive(&self, frame :&ethernet::frame::EthernetFrame<'_>,device:&ethernet::NetworkInterface) -> Result<(),Error> {
+    pub async fn receive(&self, frame :ethernet::frame::EthernetFrame<'_>,device:&ethernet::NetworkInterface) -> Result<(),Error> {
         let data = frame.data().unwrap();
         let (arp_packet,_) = packet::ArpPacket::decode_slice(&data)?;
         if arp_packet.hardware_type != packet::HARDWARE_TYPE_ETHERNET ||
@@ -86,7 +92,7 @@ impl AddressResolutionTable {
         let src_mac = convert_to_mac(&arp_packet.source_hardware_address);
         let dst_ip = convert_to_ip(&arp_packet.target_protocol_address);
         let mut updated = false;
-        if let Some(entry) = self.get_arp_entry(&src_ip).await {
+        if let Some(entry) = self.get_arp_entry(device,&src_ip).await {
             if entry.dst_mac != src_mac { // MACアドレスが異なる場合は更新
                 log::info!("Update ARP entry: {} -> {}", src_ip, src_mac);
                 self.update_arp_entry(net_common::NeighborCacheState::REACHABLE, src_ip, src_mac, device.clone()).await;
