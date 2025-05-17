@@ -36,6 +36,15 @@ impl From<ethernet::Error> for Error {
     }
 }
 
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Packet(err) => write!(f, "Packet error: {}", err),
+            Error::Ethernet(err) => write!(f, "Ethernet error: {}", err),
+        }
+    }
+}
+
 impl AddressResolutionTable {
     pub fn new(stale_timeout :std::time::Duration) -> Self {
         Self {
