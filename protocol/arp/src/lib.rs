@@ -398,9 +398,9 @@ impl AddressResolutionTable {
         let src_ip =convert_to_ip(&arp_packet.source_protocol_address);
         let src_mac = convert_to_mac(&arp_packet.source_hardware_address);
         let dst_ip = convert_to_ip(&arp_packet.target_protocol_address);
-        if src_ip == dst_ip { // Gratuitous ARPはDockerが送ってくるが今回は無視
-            return Ok(());
-        }
+        //if src_ip == dst_ip { // Gratuitous ARPはDockerが送ってくるが今回は無視
+        //    return Ok(());
+        //}
         let is_broadcast = frame.dst_mac == [0xff; 6];
         let mut updated = false;
         // LinuxのARP cacheはbroadcastアドレスで受信あるいはRequestを受信した場合はSTALEに遷移するのでそれに従う。
