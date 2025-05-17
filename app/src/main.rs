@@ -15,7 +15,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           // 規格上は最低46バイト必要だがDocker上ではそれより小さくても普通に通信できる
           format!("Hello from {}({})!", sender.name(), sender.mac_address()).as_bytes()
         ).await.unwrap();
-        log::info!("Sent frame: {} {}", sender.name(), sender.mac_address());
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
       }
     });
@@ -26,9 +25,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       loop {
         let receive_single :Result<(), Box<dyn std::error::Error>> = async {
           let frame = receiver.recv().await?;
-          log::info!("Received frame: {} {:?}",receiver.name(), frame);
-          let reencoded = frame.encode_to_vec()?;
-          log::info!("Raw bytes: {} len {} {:x?}",receiver.name(), reencoded.len(), reencoded);
           match frame.ether_type {
             ethernet::frame::EtherType::ARP => {
               let arp = arp.clone();

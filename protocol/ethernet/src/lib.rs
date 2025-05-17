@@ -146,6 +146,7 @@ impl NetworkInterface {
         frame.set_data(std::borrow::Cow::Borrowed(data))?;
         let mut buf = [0u8; 2048];
         let buf = frame.encode_to_fixed(&mut buf)?;
+        log::debug!("Sent frame: {} {:x?}",self.name(), frame);
         let state = self.state.clone();
         let _write_guard = state.write_mutex.lock().await;
         state.socket.async_io(tokio::io::Interest::WRITABLE, |socket| {
@@ -168,8 +169,12 @@ impl NetworkInterface {
         }
         let buffer= unsafe {
             std::mem::transmute::<&[std::mem::MaybeUninit<u8>], &[u8]>(&buffer.1[..buffer.0])
-        };
-        Ok(frame::EthernetFrame::decode_exact(&buffer)?)
+        };        
+        log::debug!("Raw bytes: {} len {} {:x?}",self.name(), buffer.len(), buffer);
+        Ok(frame::EthernetFrame::decode_exact(&buffer).map(|frame| {
+             log::debug!("Received frame: {} {:?}",self.name(), frame);
+             frame
+        })?)
     }
 
 }
