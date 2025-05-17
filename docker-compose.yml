@@ -14,16 +14,25 @@ services:
     cap_add:
      - NET_ADMIN # nftablesを使用するために必要
      - NET_RAW # raw socketを使用するために必要
+    environment:
+      - DST=192.168.0.3
     networks:
-      - client_server
+      client_server:
+        ipv4_address: 192.168.0.2
 
   server:
     image: brstack_app:latest
     cap_add:
      - NET_ADMIN # nftablesを使用するために必要
      - NET_RAW # raw socketを使用するために必要
+    environment:
+      - DST=192.168.0.2
     networks:
-      - client_server
+      client_server:
+        ipv4_address: 192.168.0.3
 
 networks:
   client_server:
+    ipam:
+      config:
+        - subnet: 192.168.0.0/24
