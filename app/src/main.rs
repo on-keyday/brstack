@@ -4,14 +4,33 @@
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   env_logger::init();
   let interfaces = ethernet::get_interfaces()?;
-  let arp = arp::AddressResolutionTable::new(std::time::Duration::from_secs(60));
+  let dst_ip = std::env::var("DST").unwrap().parse::<std::net::Ipv4Addr>()?;
+  let dst_ip = net_common::Ipv4Address::new(
+    dst_ip.octets()[0],
+    dst_ip.octets()[1],
+    dst_ip.octets()[2],
+    dst_ip.octets()[3]
+  );
+  let arp_table = arp::AddressResolutionTable::default();
   for iface in interfaces {
     let sender = iface.clone();
+    let arp = arp_table.clone();
     tokio::spawn(async move {
+      let dst_mac = if sender.name()=="lo" {
+        *sender.mac_address()
+      } else { 
+        match arp.get_dst_mac(&sender, &dst_ip).await {
+          Ok(mac) => mac,
+          Err(e) => {
+            log::error!("ARP error: {} {}", sender.name(), e);
+            return;
+          }
+        }
+      };
       loop {
         sender.send(ethernet::frame::EtherType::BRSTACK,
-          // 相手のMACアドレスがわからないのでブロードキャストアドレスを指定
-          &net_common::MacAddress::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
+          // 相手のMACアドレスがわかったので相手のアドレスを指定して通信する
+          &dst_mac,
           // 規格上は最低46バイト必要だがDocker上ではそれより小さくても普通に通信できる
           format!("Hello from {}({})!", sender.name(), sender.mac_address()).as_bytes()
         ).await.unwrap();
@@ -19,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       }
     });
     let receiver = iface;
-    let arp = arp.clone();
+    let arp = arp_table.clone();
     tokio::spawn(async move {
       let receiver = receiver;
       loop {
