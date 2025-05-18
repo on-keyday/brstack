@@ -1,3 +1,5 @@
+use core::net;
+
 mod packet;
 
 #[derive(Debug, Clone)]
@@ -101,6 +103,7 @@ impl AddressResolutionTable {
         let arp = self.clone();
         let device = device.clone();
         let dst_ip = dst_ip.clone();
+        log::info!("Start STALE timer for {} -> {}", device.name(), dst_ip);
         tokio::spawn(async move {
             tokio::time::sleep(arp.state.reachable_duration).await;
             let mut entries = arp.state.entries.write().await;
@@ -114,8 +117,7 @@ impl AddressResolutionTable {
 
     pub async fn update_arp_entry(&self,cache_state: net_common::NeighborCacheState,  dst_ip :net_common::Ipv4Address, dst_mac :net_common::MacAddress, device :ethernet::NetworkInterface) {
         let mut entries = self.state.entries.write().await;
-        let now = std::time::Instant::now();
-        entries
+        let entry = entries
             .entry(device.index())
             .or_insert_with(std::collections::HashMap::new).entry(dst_ip)
             .and_modify(|entry|{
@@ -123,6 +125,9 @@ impl AddressResolutionTable {
             entry.entry.update_state(cache_state);
             if let Some(sender) = entry.queue.take() {
                 sender.send(Some(dst_mac)).ok();
+                if cache_state == net_common::NeighborCacheState::STALE { // 送信しようとしているのでDELAYに遷移
+                    entry.entry.update_state(net_common::NeighborCacheState::DELAY);
+                }
             }
         }).or_insert_with(|| {
             ArpEntryWithQueue {
@@ -131,15 +136,15 @@ impl AddressResolutionTable {
                     dst_mac,
                     device: device.clone(),
                     state: cache_state,
-                    timestamp: now,
+                    timestamp: std::time::Instant::now(),
                 },
                 queue: None,
             }
         });
-        if cache_state == net_common::NeighborCacheState::REACHABLE {
-            self.start_stale_timer(&device, &dst_ip,now);
-        } else if cache_state == net_common::NeighborCacheState::DELAY {
-            self.start_delay_timer(&device, &dst_ip, now);
+        if entry.entry.state == net_common::NeighborCacheState::REACHABLE {
+            self.start_stale_timer(&device, &dst_ip, entry.entry.timestamp);
+        } else if entry.entry.state == net_common::NeighborCacheState::DELAY {
+            self.start_delay_timer(&device, &dst_ip, entry.entry.timestamp);
         }
     }
 
@@ -225,8 +230,10 @@ impl AddressResolutionTable {
         let arp = self.clone();
         let device = device.clone();
         let dst_ip = dst_ip.clone();
+        log::info!("Start DELAY timer for {} -> {}", device.name(), dst_ip);
         tokio::spawn(async move {
             tokio::time::sleep(arp.state.delay_duration).await;
+            log::debug!("DELAY timer expired for {} -> {}", device.name(), dst_ip);
             let mut entries = arp.state.entries.write().await;
             if let Some(entry) = entries.get_mut(&device.index()).and_then(|entry| entry.get_mut(&dst_ip)) {
                 if entry.entry.state == net_common::NeighborCacheState::DELAY && entry.entry.timestamp == start {
@@ -268,7 +275,11 @@ impl AddressResolutionTable {
                             }
                         }
                     }
+                } else {
+                    log::debug!("Entry state changed for {} -> {}: {:?}", device.name(), dst_ip, entry.entry.state);
                 }
+            } else {
+                log::debug!("Entry not found for {} -> {}", device.name(), dst_ip);
             }
         });    
     }

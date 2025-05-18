@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     iputils-ping \
     nftables \
     tcpdump \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./app/ /app/app/
