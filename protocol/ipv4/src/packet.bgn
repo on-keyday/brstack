@@ -1,0 +1,41 @@
+format IPv4Header:
+    version :u4(4) ihl :u4 dscp :u6 ecn :u2 len :u16
+    id :u16 reserved :u1 dont_fragment :u1 more_fragment :u1 frag_offset :u13
+    ttl :u8 proto :ProtocolNumber checksum :u16
+    src_addr :[4]u8
+    dst_addr :[4]u8
+    ihl >= 5
+    options :[u8(ihl)*4-20]u8
+
+format IPv4Header:
+    version :u4 ihl :u4 dscp :u6 ecn :u2 len :u16
+    id :u16 reserved :u1 dont_fragment :u1 more_fragment :u1 fragOffset :u13
+    ttl :u8 proto :ProtocolNumber checksum :u16
+    src_addr :[4]u8
+    dst_addr :[4]u8
+    ihl >= 5
+    options :[u8(ihl)*4-20]u8
+
+format IPv4Packet:
+    hdr :IPv4Header
+    hdr.len >= u16(hdr.ihl)*4
+    len ::= hdr.len - u16(hdr.ihl*4) 
+    data :[len]u8
+
+
+
+enum ProtocolNumber:
+    :u8
+    ICMP = 1
+    TCP = 6
+    UDP = 17
+
+fn checkSum(data :[]u8) -> u16:
+    sum := u32(0)
+    for i in data.length / 2:
+        sum += u32(data[i*2]) << 8 | u32(data[i*2+1])
+    if data.length % 2 == 1:
+        sum += u32(data[data.length-1]) << 8
+    for sum > 0xffff:
+        sum = (sum & 0xffff) + (sum >> 16)
+    return u16(!sum) # bit not(Rust方式)
