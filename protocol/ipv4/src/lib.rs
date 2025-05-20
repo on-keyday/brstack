@@ -1,8 +1,10 @@
+use std::sync::RwLock;
+
 mod packet;
 pub struct RoutingEntry {
-    pub prefix :net_common::Ipv4Prefix,
+    pub prefix: net_common::Ipv4Prefix,
     pub next_hop: net_common::Ipv4Address,
-    pub device : ethernet::NetworkInterface,
+    pub device: ethernet::NetworkInterface,
 }
 
 struct RoutingTrieNode {
@@ -29,7 +31,12 @@ impl RoutingTable {
         }
     }
 
-    pub async fn insert(&mut self, prefix: net_common::Ipv4Prefix, next_hop: net_common::Ipv4Address, device: ethernet::NetworkInterface) {
+    pub async fn insert(
+        &self,
+        prefix: net_common::Ipv4Prefix,
+        next_hop: net_common::Ipv4Address,
+        device: ethernet::NetworkInterface,
+    ) {
         let mut node = self.root.write().await;
         let mut node = &mut *node;
         for i in (0..prefix.prefix_length).rev() {
@@ -46,7 +53,10 @@ impl RoutingTable {
         }));
     }
 
-    pub async fn lookup(&self, address: &net_common::Ipv4Address) -> Option<std::sync::Arc<RoutingEntry>> {
+    pub async fn lookup(
+        &self,
+        address: &net_common::Ipv4Address,
+    ) -> Option<std::sync::Arc<RoutingEntry>> {
         let node = self.root.read().await;
         let mut node = &*node;
         let mut best_entry: Option<&std::sync::Arc<RoutingEntry>> = None;
@@ -66,10 +76,18 @@ impl RoutingTable {
     }
 }
 
+pub trait IPv4Receiver {
+    fn receive(&self, pkt: packet::IPv4Packet<'static>) -> Result<(), Error>;
+}
+
+struct RouterState {
+    routing_table: RoutingTable,
+    arp: arp::AddressResolutionTable,
+    protocols: RwLock<std::collections::HashMap<u8, Box<dyn IPv4Receiver + Send + Sync>>>,
+}
 
 pub struct Router {
-    routing_table: RoutingTable,
-    arp :arp::AddressResolutionTable,
+    state: std::sync::Arc<RouterState>,
 }
 
 pub enum Error {
@@ -106,7 +124,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-fn check_checksum(hdr :&packet::IPv4Header<'_>) -> Result<(), Error> {
+fn check_checksum(hdr: &packet::IPv4Header<'_>) -> Result<(), Error> {
     let checksum = hdr.checksum;
     let mut hdr = hdr.clone();
     hdr.checksum = 0;
@@ -120,20 +138,47 @@ fn check_checksum(hdr :&packet::IPv4Header<'_>) -> Result<(), Error> {
 }
 
 impl Router {
-    pub fn new(arp :arp::AddressResolutionTable) -> Self {
+    pub fn new(arp: arp::AddressResolutionTable) -> Self {
         Router {
-            routing_table: RoutingTable::new(),
-            arp,
+            state: std::sync::Arc::new(RouterState {
+                routing_table: RoutingTable::new(),
+                arp,
+                protocols: RwLock::new(std::collections::HashMap::new()),
+            }),
         }
     }
 
-    pub async fn add_route(&mut self, prefix: net_common::Ipv4Prefix, next_hop: net_common::Ipv4Address, device: ethernet::NetworkInterface) {
-        self.routing_table.insert(prefix, next_hop, device).await;
+    pub fn register_protocol(
+        &mut self,
+        proto: packet::ProtocolNumber,
+        receiver: Box<dyn IPv4Receiver + Send + Sync>,
+    ) {
+        self.state.protocols.write().unwrap().insert(proto.into(), receiver);
     }
 
-    async fn send_direct(&self,proto :packet::ProtocolNumber,ttl :u8, dst_addr: net_common::Ipv4Address, dst_mac :&net_common::MacAddress, device: &ethernet::NetworkInterface, data: &[u8]) -> Result<(), Error> {
+    pub async fn add_route(
+        &mut self,
+        prefix: net_common::Ipv4Prefix,
+        next_hop: net_common::Ipv4Address,
+        device: ethernet::NetworkInterface,
+    ) {
+        self.state.routing_table.insert(prefix, next_hop, device).await;
+    }
+
+    async fn send_direct(
+        &self,
+        proto: packet::ProtocolNumber,
+        ttl: u8,
+        dst_addr: net_common::Ipv4Address,
+        dst_mac: &net_common::MacAddress,
+        device: &ethernet::NetworkInterface,
+        data: &[u8],
+    ) -> Result<(), Error> {
         if data.len() > 2048 {
-            return Err(Error::Protocol(format!("Data length exceeds 2048 bytes: {}", data.len())));
+            return Err(Error::Protocol(format!(
+                "Data length exceeds 2048 bytes: {}",
+                data.len()
+            )));
         }
         let mut pkt = packet::IPv4Packet::default();
         pkt.hdr.set_version(4);
@@ -150,52 +195,87 @@ impl Router {
         pkt.hdr.checksum = packet::checkSum(std::borrow::Cow::Borrowed(&buffer));
         pkt.data = std::borrow::Cow::Borrowed(data);
         let mut buffer = [0u8; 2048];
-        let data =  pkt.encode_to_fixed(&mut buffer)?;
-        device.send(ethernet::frame::EtherType::IPv4,dst_mac,data).await?;
+        let data = pkt.encode_to_fixed(&mut buffer)?;
+        device
+            .send(ethernet::frame::EtherType::IPv4, dst_mac, data)
+            .await?;
         Ok(())
     }
 
-    async fn send_routed(&self, proto :packet::ProtocolNumber, ttl :u8, dst_addr: net_common::Ipv4Address,  data: &[u8]) -> Result<(), Error> {
-        let entry = self.routing_table.lookup(&dst_addr).await;
+    async fn send_routed(
+        &self,
+        proto: packet::ProtocolNumber,
+        ttl: u8,
+        dst_addr: net_common::Ipv4Address,
+        data: &[u8],
+    ) -> Result<(), Error> {
+        let entry = self.state.routing_table.lookup(&dst_addr).await;
         if let Some(entry) = entry {
-            let resolve_target = if entry.next_hop == net_common::Ipv4Address([0,0,0,0]) {
+            let resolve_target = if entry.next_hop == net_common::Ipv4Address([0, 0, 0, 0]) {
                 dst_addr
             } else {
                 entry.next_hop
             };
-            let dst_mac = self.arp.get_dst_mac(&entry.device, &resolve_target).await?;
-            self.send_direct(proto, ttl, dst_addr, &dst_mac, &entry.device, data).await
+            let dst_mac = self.state.arp.get_dst_mac(&entry.device, &resolve_target).await?;
+            self.send_direct(proto, ttl, dst_addr, &dst_mac, &entry.device, data)
+                .await
         } else {
             Err(Error::Protocol("No route to host".to_string()))
         }
     }
 
-    pub async fn send(&self, proto :packet::ProtocolNumber, dst_addr: net_common::Ipv4Address, data: &[u8]) -> Result<(), Error> {
+    pub async fn send(
+        &self,
+        proto: packet::ProtocolNumber,
+        dst_addr: net_common::Ipv4Address,
+        data: &[u8],
+    ) -> Result<(), Error> {
         self.send_routed(proto, 64, dst_addr, data).await
     }
 
-    async fn route(&self, pkt :packet::IPv4Packet<'_>) {
+    async fn route(&self, pkt: packet::IPv4Packet<'_>) {
         if pkt.hdr.ttl <= 1 {
             log::warn!("TTL expired");
             return;
         }
-        self.send_routed(pkt.hdr.proto, pkt.hdr.ttl - 1, net_common::Ipv4Address(pkt.hdr.dst_addr), pkt.data.as_ref()).await.unwrap_or_else(|e| {
+        self.send_routed(
+            pkt.hdr.proto,
+            pkt.hdr.ttl - 1,
+            net_common::Ipv4Address(pkt.hdr.dst_addr),
+            pkt.data.as_ref(),
+        )
+        .await
+        .unwrap_or_else(|e| {
             log::error!("Failed to route packet: {}", e);
         });
-   }
+    }
 
-    pub async fn receive(&self, device: &ethernet::NetworkInterface, frame: &ethernet::frame::EthernetFrame<'_>) -> Result<(),Error> {
-       let data = frame.data().unwrap();
-       let (pkt,_) = packet::IPv4Packet::decode_slice(&data)?;
-       check_checksum(&pkt.hdr)?;
-       let dst_addr = net_common::Ipv4Address(pkt.hdr.dst_addr);
-       if device.ipv4_address().address != dst_addr&&
-          !device.ipv4_address().is_broadcast_address(dst_addr)&&
-          dst_addr != net_common::Ipv4Address([0xff;4]) {
-           // ルーティングテーブルを参照してルーティングする
-           self.route(pkt).await;
-           return Ok(());
-       }
-       Ok(())
+    pub async fn receive(
+        &self,
+        device: &ethernet::NetworkInterface,
+        frame: &ethernet::frame::EthernetFrame<'_>,
+    ) -> Result<(), Error> {
+        let data = frame.data().unwrap();
+        let (pkt, _) = packet::IPv4Packet::decode_slice(&data)?;
+        check_checksum(&pkt.hdr)?;
+        let dst_addr = net_common::Ipv4Address(pkt.hdr.dst_addr);
+        if device.ipv4_address().address != dst_addr
+            && !device.ipv4_address().is_broadcast_address(dst_addr)
+            && dst_addr != net_common::Ipv4Address([0xff; 4])
+        {
+            // ルーティングテーブルを参照してルーティングする
+            self.route(pkt).await;
+            return Ok(());
+        }
+        let proto = pkt.hdr.proto;
+        let protocols = self.state.protocols.read().unwrap();
+        if let Some(receiver) = protocols.get(&proto.into()) {
+            receiver
+                .receive(pkt)
+                .map_err(|e| Error::Protocol(format!("Protocol error: {}", e)))?;
+        } else {
+            log::warn!("No protocol handler for protocol number {}", proto);
+        }
+        Ok(())
     }
 }
