@@ -86,7 +86,6 @@ impl std::convert::From<ProtocolNumber> for u8 {
 /* Unimplemented op: DECLARE_FUNCTION */
 /* Unimplemented op: DECLARE_FORMAT */
 /* Unimplemented op: DECLARE_FORMAT */
-/* Unimplemented op: DECLARE_FORMAT */
 impl <'a>IPv4Header<'a> {
     pub fn version(&self) -> u8 {
         ((self.field_3>>4) & 15) as u8}
@@ -156,92 +155,13 @@ impl <'a>IPv4Header<'a> {
     }
 }
 impl <'a>IPv4Header<'a> {
-    pub fn frag_offset(&self) -> u16 {
-        ((self.field_5>>0) & 8191) as u16}
-    pub fn set_frag_offset(&mut self, value: u16) -> bool {
-        if value > 8191 {
-        return false;
-        }
-        self.field_5 |= (value as u16) << 0;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn version(&self) -> u8 {
-        ((self.field_34>>4) & 15) as u8}
-    pub fn set_version(&mut self, value: u8) -> bool {
-        if value > 15 {
-        return false;
-        }
-        self.field_34 |= (value as u8) << 4;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn ihl(&self) -> u8 {
-        ((self.field_34>>0) & 15) as u8}
-    pub fn set_ihl(&mut self, value: u8) -> bool {
-        if value > 15 {
-        return false;
-        }
-        self.field_34 |= (value as u8) << 0;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn dscp(&self) -> u8 {
-        ((self.field_35>>2) & 63) as u8}
-    pub fn set_dscp(&mut self, value: u8) -> bool {
-        if value > 63 {
-        return false;
-        }
-        self.field_35 |= (value as u8) << 2;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn ecn(&self) -> u8 {
-        ((self.field_35>>0) & 3) as u8}
-    pub fn set_ecn(&mut self, value: u8) -> bool {
-        if value > 3 {
-        return false;
-        }
-        self.field_35 |= (value as u8) << 0;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn reserved(&self) -> bool {
-        ((self.field_36>>15) & 1) as u8 != 0}
-    pub fn set_reserved(&mut self, value: bool) -> bool {
-        self.field_36 |= (if value {1} else {0} as u16) << 15;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn dont_fragment(&self) -> bool {
-        ((self.field_36>>14) & 1) as u8 != 0}
-    pub fn set_dont_fragment(&mut self, value: bool) -> bool {
-        self.field_36 |= (if value {1} else {0} as u16) << 14;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
-    pub fn more_fragment(&self) -> bool {
-        ((self.field_36>>13) & 1) as u8 != 0}
-    pub fn set_more_fragment(&mut self, value: bool) -> bool {
-        self.field_36 |= (if value {1} else {0} as u16) << 13;
-        true
-    }
-}
-impl <'a>IPv4Header<'a> {
     pub fn fragOffset(&self) -> u16 {
-        ((self.field_36>>0) & 8191) as u16}
+        ((self.field_5>>0) & 8191) as u16}
     pub fn set_fragOffset(&mut self, value: u16) -> bool {
         if value > 8191 {
         return false;
         }
-        self.field_36 |= (value as u16) << 0;
+        self.field_5 |= (value as u16) << 0;
         true
     }
 }
@@ -261,36 +181,6 @@ pub struct IPv4Header<'a> {
     pub len: u16,
     pub id: u16,
     field_5 :u16,/*reserved :1*/
-    /*dont_fragment :1*/
-    /*more_fragment :1*/
-    /*frag_offset :13*/
-    
-    
-    
-    
-    pub ttl: u8,
-    pub proto: ProtocolNumber,
-    pub checksum: u16,
-    pub src_addr: [u8; 4],
-    pub dst_addr: [u8; 4],
-    pub options: std::borrow::Cow<'a,[u8]>,
-}
-#[derive(Debug,Default, Clone, PartialEq, Eq)]
-pub struct IPv4Header<'a> {
-    pub _phantom: std::marker::PhantomData<&'a ()>,
-    /* Unimplemented op: DEFINE_ENCODER */
-    /* Unimplemented op: DEFINE_DECODER */
-    field_34 :u8,/*version :4*/
-    /*ihl :4*/
-    
-    
-    field_35 :u8,/*dscp :6*/
-    /*ecn :2*/
-    
-    
-    pub len: u16,
-    pub id: u16,
-    field_36 :u16,/*reserved :1*/
     /*dont_fragment :1*/
     /*more_fragment :1*/
     /*fragOffset :13*/
@@ -318,11 +208,11 @@ pub struct IPv4Packet<'a> {
 /* Unimplemented op: END_COND_BLOCK */
 pub fn checkSum<'a>(data: std::borrow::Cow<'a,[u8]>) -> u16 {
     let mut sum = 0;
-    let mut tmp72 = 0;
-    while((tmp72 < (data.len() / 2))) {
-        let mut i = tmp72;
+    let mut tmp52 = 0;
+    while((tmp52 < (data.len() / 2))) {
+        let mut i = tmp52;
         sum = (sum + ((((data)[(i * 2) as usize] as u32) << 8) | ((data)[((i * 2) + 1) as usize] as u32)));
-        tmp72+= 1;
+        tmp52+= 1;
     }
     if ((data.len() % 2) == 1) {
         sum = (sum + (((data)[(data.len() - 1) as usize] as u32) << 8));
@@ -394,216 +284,76 @@ impl <'a>IPv4Header<'a> {
         Ok(&data[0..written])
     }
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        let mut tmp412 = <u8>::default();
-        let mut tmp413 = 0;
-        if(!(self.version() == 4)) { 
-        return Err(Error::AssertError("(self.version() == 4)"));
+        let mut tmp262 = <u8>::default();
+        let mut tmp263 = 0;
+        tmp263 = (tmp263 + 4);
+        tmp262 = (tmp262 | (((self.version() as u8) & 15) << (8 - tmp263)));
+        tmp263 = (tmp263 + 4);
+        tmp262 = (tmp262 | (((self.ihl() as u8) & 15) << (8 - tmp263)));
+        let mut tmp524 = <[u8; 1]>::default();
+        (tmp524)[0 as usize] = tmp262;
+        w.write_all(&tmp524[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
+        let mut tmp285 = <u8>::default();
+        let mut tmp286 = 0;
+        tmp286 = (tmp286 + 6);
+        tmp285 = (tmp285 | (((self.dscp() as u8) & 63) << (8 - tmp286)));
+        tmp286 = (tmp286 + 2);
+        tmp285 = (tmp285 | (((self.ecn() as u8) & 3) << (8 - tmp286)));
+        let mut tmp529 = <[u8; 1]>::default();
+        (tmp529)[0 as usize] = tmp285;
+        w.write_all(&tmp529[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
+        let mut tmp430 = <[u8; 2]>::default();
+        let mut tmp431 = 0;
+        while((tmp431 < 2)) {
+            (tmp430)[tmp431 as usize] = (((self.len >> ((1 - tmp431) * 8)) & 255) as u8);
+            tmp431+= 1;
         }
-        tmp413 = (tmp413 + 4);
-        tmp412 = (tmp412 | (((self.version() as u8) & 15) << (8 - tmp413)));
-        tmp413 = (tmp413 + 4);
-        tmp412 = (tmp412 | (((self.ihl() as u8) & 15) << (8 - tmp413)));
-        let mut tmp932 = <[u8; 1]>::default();
-        (tmp932)[0 as usize] = tmp412;
-        w.write_all(&tmp932[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp435 = <u8>::default();
-        let mut tmp436 = 0;
-        tmp436 = (tmp436 + 6);
-        tmp435 = (tmp435 | (((self.dscp() as u8) & 63) << (8 - tmp436)));
-        tmp436 = (tmp436 + 2);
-        tmp435 = (tmp435 | (((self.ecn() as u8) & 3) << (8 - tmp436)));
-        let mut tmp937 = <[u8; 1]>::default();
-        (tmp937)[0 as usize] = tmp435;
-        w.write_all(&tmp937[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp746 = <[u8; 2]>::default();
-        let mut tmp747 = 0;
-        while((tmp747 < 2)) {
-            (tmp746)[tmp747 as usize] = (((self.len >> ((1 - tmp747) * 8)) & 255) as u8);
-            tmp747+= 1;
+        w.write_all(&tmp430[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
+        let mut tmp443 = <[u8; 2]>::default();
+        let mut tmp444 = 0;
+        while((tmp444 < 2)) {
+            (tmp443)[tmp444 as usize] = (((self.id >> ((1 - tmp444) * 8)) & 255) as u8);
+            tmp444+= 1;
         }
-        w.write_all(&tmp746[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
-        let mut tmp759 = <[u8; 2]>::default();
-        let mut tmp760 = 0;
-        while((tmp760 < 2)) {
-            (tmp759)[tmp760 as usize] = (((self.id >> ((1 - tmp760) * 8)) & 255) as u8);
-            tmp760+= 1;
+        w.write_all(&tmp443[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
+        let mut tmp308 = <u16>::default();
+        let mut tmp310 = 0;
+        tmp310 = (tmp310 + 1);
+        tmp308 = (tmp308 | ((if self.reserved() {1} else {0} & 1) << (16 - tmp310)));
+        tmp310 = (tmp310 + 1);
+        tmp308 = (tmp308 | ((if self.dont_fragment() {1} else {0} & 1) << (16 - tmp310)));
+        tmp310 = (tmp310 + 1);
+        tmp308 = (tmp308 | ((if self.more_fragment() {1} else {0} & 1) << (16 - tmp310)));
+        tmp310 = (tmp310 + 13);
+        tmp308 = (tmp308 | (((self.fragOffset() as u16) & 8191) << (16 - tmp310)));
+        let mut tmp534 = <[u8; 2]>::default();
+        let mut tmp535 = 0;
+        while((tmp535 < 2)) {
+            (tmp534)[tmp535 as usize] = (((tmp308 >> ((1 - tmp535) * 8)) & 255) as u8);
+            tmp535+= 1;
         }
-        w.write_all(&tmp759[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
-        let mut tmp458 = <u16>::default();
-        let mut tmp460 = 0;
-        tmp460 = (tmp460 + 1);
-        tmp458 = (tmp458 | ((if self.reserved() {1} else {0} & 1) << (16 - tmp460)));
-        tmp460 = (tmp460 + 1);
-        tmp458 = (tmp458 | ((if self.dont_fragment() {1} else {0} & 1) << (16 - tmp460)));
-        tmp460 = (tmp460 + 1);
-        tmp458 = (tmp458 | ((if self.more_fragment() {1} else {0} & 1) << (16 - tmp460)));
-        tmp460 = (tmp460 + 13);
-        tmp458 = (tmp458 | (((self.frag_offset() as u16) & 8191) << (16 - tmp460)));
-        let mut tmp942 = <[u8; 2]>::default();
-        let mut tmp943 = 0;
-        while((tmp943 < 2)) {
-            (tmp942)[tmp943 as usize] = (((tmp458 >> ((1 - tmp943) * 8)) & 255) as u8);
-            tmp943+= 1;
+        w.write_all(&tmp534[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
+        let mut tmp456 = <[u8; 1]>::default();
+        (tmp456)[0 as usize] = self.ttl;
+        w.write_all(&tmp456[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
+        let mut tmp461 = <[u8; 1]>::default();
+        (tmp461)[0 as usize] = u8::from(self.proto);
+        w.write_all(&tmp461[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
+        let mut tmp466 = <[u8; 2]>::default();
+        let mut tmp467 = 0;
+        while((tmp467 < 2)) {
+            (tmp466)[tmp467 as usize] = (((self.checksum >> ((1 - tmp467) * 8)) & 255) as u8);
+            tmp467+= 1;
         }
-        w.write_all(&tmp942[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp772 = <[u8; 1]>::default();
-        (tmp772)[0 as usize] = self.ttl;
-        w.write_all(&tmp772[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
-        let mut tmp777 = <[u8; 1]>::default();
-        (tmp777)[0 as usize] = u8::from(self.proto);
-        w.write_all(&tmp777[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
-        let mut tmp782 = <[u8; 2]>::default();
-        let mut tmp783 = 0;
-        while((tmp783 < 2)) {
-            (tmp782)[tmp783 as usize] = (((self.checksum >> ((1 - tmp783) * 8)) & 255) as u8);
-            tmp783+= 1;
-        }
-        w.write_all(&tmp782[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
+        w.write_all(&tmp466[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
         w.write_all(&self.src_addr[0..4 as usize]).map_err(|e| Error::IOError("self.src_addr",e))?;
         w.write_all(&self.dst_addr[0..4 as usize]).map_err(|e| Error::IOError("self.dst_addr",e))?;
         if(!(self.ihl() >= 5)) { 
         return Err(Error::AssertError("(self.ihl() >= 5)"));
         }
-        let mut tmp124 = (((self.ihl() as u8) * 4) - 20);
-        if self.options.len() != tmp124 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.options", tmp124 as usize, self.options.len()));
-        }
-        w.write_all(&self.options[0..self.options.len() as usize]).map_err(|e| Error::IOError("self.options",e))?;
-        return Ok(());
-    }
-}
-/* Unimplemented op: ENCODER_PARAMETER */
-/* Unimplemented op: RETURN_TYPE */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-impl <'a>IPv4Header<'a> {
-    pub fn encode_to_vec(&self) -> std::result::Result<Vec<u8>, Error> {
-        let mut w = std::io::Cursor::new(Vec::new());
-        self.encode(&mut w
-        )?;
-        Ok(w.into_inner())
-    }
-    pub fn encode_to_fixed<'b>(&self, data: &'b mut [u8]) -> std::result::Result<&'b [u8], Error> {
-        let mut w = std::io::Cursor::new(&mut *data);
-        self.encode(&mut w
-        )?;
-        let written = w.position() as usize;
-        drop(w);
-        Ok(&data[0..written])
-    }
-    pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        let mut tmp500 = <u8>::default();
-        let mut tmp501 = 0;
-        tmp501 = (tmp501 + 4);
-        tmp500 = (tmp500 | (((self.version() as u8) & 15) << (8 - tmp501)));
-        tmp501 = (tmp501 + 4);
-        tmp500 = (tmp500 | (((self.ihl() as u8) & 15) << (8 - tmp501)));
-        let mut tmp954 = <[u8; 1]>::default();
-        (tmp954)[0 as usize] = tmp500;
-        w.write_all(&tmp954[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp523 = <u8>::default();
-        let mut tmp524 = 0;
-        tmp524 = (tmp524 + 6);
-        tmp523 = (tmp523 | (((self.dscp() as u8) & 63) << (8 - tmp524)));
-        tmp524 = (tmp524 + 2);
-        tmp523 = (tmp523 | (((self.ecn() as u8) & 3) << (8 - tmp524)));
-        let mut tmp959 = <[u8; 1]>::default();
-        (tmp959)[0 as usize] = tmp523;
-        w.write_all(&tmp959[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp794 = <[u8; 2]>::default();
-        let mut tmp795 = 0;
-        while((tmp795 < 2)) {
-            (tmp794)[tmp795 as usize] = (((self.len >> ((1 - tmp795) * 8)) & 255) as u8);
-            tmp795+= 1;
-        }
-        w.write_all(&tmp794[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
-        let mut tmp806 = <[u8; 2]>::default();
-        let mut tmp807 = 0;
-        while((tmp807 < 2)) {
-            (tmp806)[tmp807 as usize] = (((self.id >> ((1 - tmp807) * 8)) & 255) as u8);
-            tmp807+= 1;
-        }
-        w.write_all(&tmp806[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
-        let mut tmp546 = <u16>::default();
-        let mut tmp547 = 0;
-        tmp547 = (tmp547 + 1);
-        tmp546 = (tmp546 | ((if self.reserved() {1} else {0} & 1) << (16 - tmp547)));
-        tmp547 = (tmp547 + 1);
-        tmp546 = (tmp546 | ((if self.dont_fragment() {1} else {0} & 1) << (16 - tmp547)));
-        tmp547 = (tmp547 + 1);
-        tmp546 = (tmp546 | ((if self.more_fragment() {1} else {0} & 1) << (16 - tmp547)));
-        tmp547 = (tmp547 + 13);
-        tmp546 = (tmp546 | (((self.fragOffset() as u16) & 8191) << (16 - tmp547)));
-        let mut tmp964 = <[u8; 2]>::default();
-        let mut tmp965 = 0;
-        while((tmp965 < 2)) {
-            (tmp964)[tmp965 as usize] = (((tmp546 >> ((1 - tmp965) * 8)) & 255) as u8);
-            tmp965+= 1;
-        }
-        w.write_all(&tmp964[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp818 = <[u8; 1]>::default();
-        (tmp818)[0 as usize] = self.ttl;
-        w.write_all(&tmp818[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
-        let mut tmp823 = <[u8; 1]>::default();
-        (tmp823)[0 as usize] = u8::from(self.proto);
-        w.write_all(&tmp823[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
-        let mut tmp828 = <[u8; 2]>::default();
-        let mut tmp829 = 0;
-        while((tmp829 < 2)) {
-            (tmp828)[tmp829 as usize] = (((self.checksum >> ((1 - tmp829) * 8)) & 255) as u8);
-            tmp829+= 1;
-        }
-        w.write_all(&tmp828[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
-        w.write_all(&self.src_addr[0..4 as usize]).map_err(|e| Error::IOError("self.src_addr",e))?;
-        w.write_all(&self.dst_addr[0..4 as usize]).map_err(|e| Error::IOError("self.dst_addr",e))?;
-        if(!(self.ihl() >= 5)) { 
-        return Err(Error::AssertError("(self.ihl() >= 5)"));
-        }
-        let mut tmp135 = (((self.ihl() as u8) * 4) - 20);
-        if self.options.len() != tmp135 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.options", tmp135 as usize, self.options.len()));
+        let mut tmp103 = (((self.ihl() as u8) * 4) - 20);
+        if self.options.len() != tmp103 as usize {
+        return Err(Error::ArrayLengthMismatch("encode self.options", tmp103 as usize, self.options.len()));
         }
         w.write_all(&self.options[0..self.options.len() as usize]).map_err(|e| Error::IOError("self.options",e))?;
         return Ok(());
@@ -632,9 +382,9 @@ impl <'a>IPv4Packet<'a> {
         return Err(Error::AssertError("(self.hdr.len >= ((self.hdr.ihl() as u16) * 4))"));
         }
         let mut len = (self.hdr.len - ((self.hdr.ihl() * 4) as u16));
-        let mut tmp149 = len;
-        if self.data.len() != tmp149 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.data", tmp149 as usize, self.data.len()));
+        let mut tmp117 = len;
+        if self.data.len() != tmp117 as usize {
+        return Err(Error::ArrayLengthMismatch("encode self.data", tmp117 as usize, self.data.len()));
         }
         w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
         return Ok(());
@@ -701,216 +451,77 @@ impl <'a>IPv4Header<'a> {
         Ok(result)
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        let mut tmp587 = <u8>::default();
-        let mut tmp588 = 0;
-        let mut tmp976 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp976[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        tmp587 = (tmp976)[0 as usize];
-        tmp588 = (tmp588 + 4);
-        self.set_version((((tmp587 >> (8 - tmp588)) & 15) as u8));
-        if(!(self.version() == 4)) { 
-        return Err(Error::AssertError("(self.version() == 4)"));
+        let mut tmp350 = <u8>::default();
+        let mut tmp351 = 0;
+        let mut tmp546 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp546[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
+        tmp350 = (tmp546)[0 as usize];
+        tmp351 = (tmp351 + 4);
+        self.set_version((((tmp350 >> (8 - tmp351)) & 15) as u8));
+        tmp351 = (tmp351 + 4);
+        self.set_ihl((((tmp350 >> (8 - tmp351)) & 15) as u8));
+        let mut tmp371 = <u8>::default();
+        let mut tmp372 = 0;
+        let mut tmp551 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp551[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
+        tmp371 = (tmp551)[0 as usize];
+        tmp372 = (tmp372 + 6);
+        self.set_dscp((((tmp371 >> (8 - tmp372)) & 63) as u8));
+        tmp372 = (tmp372 + 2);
+        self.set_ecn((((tmp371 >> (8 - tmp372)) & 3) as u8));
+        let mut tmp478 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp478[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
+        let mut tmp479 = 0;
+        while((tmp479 < 2)) {
+            self.len = (self.len | (((tmp478)[tmp479 as usize] as u16) << ((1 - tmp479) * 8)));
+            tmp479+= 1;
         }
-        tmp588 = (tmp588 + 4);
-        self.set_ihl((((tmp587 >> (8 - tmp588)) & 15) as u8));
-        let mut tmp608 = <u8>::default();
-        let mut tmp609 = 0;
-        let mut tmp981 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp981[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        tmp608 = (tmp981)[0 as usize];
-        tmp609 = (tmp609 + 6);
-        self.set_dscp((((tmp608 >> (8 - tmp609)) & 63) as u8));
-        tmp609 = (tmp609 + 2);
-        self.set_ecn((((tmp608 >> (8 - tmp609)) & 3) as u8));
-        let mut tmp840 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp840[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
-        let mut tmp841 = 0;
-        while((tmp841 < 2)) {
-            self.len = (self.len | (((tmp840)[tmp841 as usize] as u16) << ((1 - tmp841) * 8)));
-            tmp841+= 1;
+        let mut tmp490 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp490[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
+        let mut tmp491 = 0;
+        while((tmp491 < 2)) {
+            self.id = (self.id | (((tmp490)[tmp491 as usize] as u16) << ((1 - tmp491) * 8)));
+            tmp491+= 1;
         }
-        let mut tmp852 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp852[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
-        let mut tmp853 = 0;
-        while((tmp853 < 2)) {
-            self.id = (self.id | (((tmp852)[tmp853 as usize] as u16) << ((1 - tmp853) * 8)));
-            tmp853+= 1;
+        let mut tmp392 = <u16>::default();
+        let mut tmp393 = 0;
+        let mut tmp556 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp556[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
+        let mut tmp557 = 0;
+        while((tmp557 < 2)) {
+            tmp392 = (tmp392 | (((tmp556)[tmp557 as usize] as u16) << ((1 - tmp557) * 8)));
+            tmp557+= 1;
         }
-        let mut tmp629 = <u16>::default();
-        let mut tmp630 = 0;
-        let mut tmp986 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp986[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp987 = 0;
-        while((tmp987 < 2)) {
-            tmp629 = (tmp629 | (((tmp986)[tmp987 as usize] as u16) << ((1 - tmp987) * 8)));
-            tmp987+= 1;
-        }
-        tmp630 = (tmp630 + 1);
-        self.set_reserved(((tmp629 >> (16 - tmp630)) & 1) != 0);
-        tmp630 = (tmp630 + 1);
-        self.set_dont_fragment(((tmp629 >> (16 - tmp630)) & 1) != 0);
-        tmp630 = (tmp630 + 1);
-        self.set_more_fragment(((tmp629 >> (16 - tmp630)) & 1) != 0);
-        tmp630 = (tmp630 + 13);
-        self.set_frag_offset((((tmp629 >> (16 - tmp630)) & 8191) as u16));
-        let mut tmp864 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp864[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
-        self.ttl = (tmp864)[0 as usize];
-        let mut tmp156 = <u8>::default();
-        let mut tmp869 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp869[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
-        tmp156 = (tmp869)[0 as usize];
-        self.proto = ProtocolNumber::from(tmp156);
-        let mut tmp874 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp874[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
-        let mut tmp875 = 0;
-        while((tmp875 < 2)) {
-            self.checksum = (self.checksum | (((tmp874)[tmp875 as usize] as u16) << ((1 - tmp875) * 8)));
-            tmp875+= 1;
+        tmp393 = (tmp393 + 1);
+        self.set_reserved(((tmp392 >> (16 - tmp393)) & 1) != 0);
+        tmp393 = (tmp393 + 1);
+        self.set_dont_fragment(((tmp392 >> (16 - tmp393)) & 1) != 0);
+        tmp393 = (tmp393 + 1);
+        self.set_more_fragment(((tmp392 >> (16 - tmp393)) & 1) != 0);
+        tmp393 = (tmp393 + 13);
+        self.set_fragOffset((((tmp392 >> (16 - tmp393)) & 8191) as u16));
+        let mut tmp502 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp502[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
+        self.ttl = (tmp502)[0 as usize];
+        let mut tmp123 = <u8>::default();
+        let mut tmp507 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp507[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
+        tmp123 = (tmp507)[0 as usize];
+        self.proto = ProtocolNumber::from(tmp123);
+        let mut tmp512 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp512[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
+        let mut tmp513 = 0;
+        while((tmp513 < 2)) {
+            self.checksum = (self.checksum | (((tmp512)[tmp513 as usize] as u16) << ((1 - tmp513) * 8)));
+            tmp513+= 1;
         }
         r.read_exact(&mut self.src_addr[0..4 as usize]).map_err(|e| Error::IOError("self.src_addr",e))?;
         r.read_exact(&mut self.dst_addr[0..4 as usize]).map_err(|e| Error::IOError("self.dst_addr",e))?;
         if(!(self.ihl() >= 5)) { 
         return Err(Error::AssertError("(self.ihl() >= 5)"));
         }
-        let mut tmp163 = (((self.ihl() as u8) * 4) - 20);
-        self.options.to_mut().resize(tmp163 as usize,0);
-        r.read_exact(self.options.to_mut()).map_err(|e| Error::IOError("self.options",e))?;
-        return Ok(());
-    }
-}
-/* Unimplemented op: DECODER_PARAMETER */
-/* Unimplemented op: RETURN_TYPE */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-/* Unimplemented op: DEFINE_FALLBACK */
-/* Unimplemented op: END_FALLBACK */
-impl <'a>IPv4Header<'a> {
-    pub fn decode_slice<'b>(data :&'b [u8]) -> Result<(Self,&'b [u8]), Error> {
-        let mut r = std::io::Cursor::new(data);
-        let mut result = Self::default();
-        result.decode(&mut r)?;
-        Ok((result,&data[r.position() as usize..]))
-    }
-    pub fn decode_exact(data :&[u8]) -> Result<Self, Error> {
-        let (result,rest) = Self::decode_slice(data)?;
-        if rest.len() > 0 {
-        return Err(Error::AssertError("Unexpected data"));
-        }
-        Ok(result)
-    }
-    pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        let mut tmp666 = <u8>::default();
-        let mut tmp667 = 0;
-        let mut tmp998 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp998[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        tmp666 = (tmp998)[0 as usize];
-        tmp667 = (tmp667 + 4);
-        self.set_version((((tmp666 >> (8 - tmp667)) & 15) as u8));
-        tmp667 = (tmp667 + 4);
-        self.set_ihl((((tmp666 >> (8 - tmp667)) & 15) as u8));
-        let mut tmp687 = <u8>::default();
-        let mut tmp688 = 0;
-        let mut tmp1003 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp1003[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        tmp687 = (tmp1003)[0 as usize];
-        tmp688 = (tmp688 + 6);
-        self.set_dscp((((tmp687 >> (8 - tmp688)) & 63) as u8));
-        tmp688 = (tmp688 + 2);
-        self.set_ecn((((tmp687 >> (8 - tmp688)) & 3) as u8));
-        let mut tmp886 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp886[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
-        let mut tmp887 = 0;
-        while((tmp887 < 2)) {
-            self.len = (self.len | (((tmp886)[tmp887 as usize] as u16) << ((1 - tmp887) * 8)));
-            tmp887+= 1;
-        }
-        let mut tmp898 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp898[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
-        let mut tmp899 = 0;
-        while((tmp899 < 2)) {
-            self.id = (self.id | (((tmp898)[tmp899 as usize] as u16) << ((1 - tmp899) * 8)));
-            tmp899+= 1;
-        }
-        let mut tmp708 = <u16>::default();
-        let mut tmp709 = 0;
-        let mut tmp1008 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp1008[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp1009 = 0;
-        while((tmp1009 < 2)) {
-            tmp708 = (tmp708 | (((tmp1008)[tmp1009 as usize] as u16) << ((1 - tmp1009) * 8)));
-            tmp1009+= 1;
-        }
-        tmp709 = (tmp709 + 1);
-        self.set_reserved(((tmp708 >> (16 - tmp709)) & 1) != 0);
-        tmp709 = (tmp709 + 1);
-        self.set_dont_fragment(((tmp708 >> (16 - tmp709)) & 1) != 0);
-        tmp709 = (tmp709 + 1);
-        self.set_more_fragment(((tmp708 >> (16 - tmp709)) & 1) != 0);
-        tmp709 = (tmp709 + 13);
-        self.set_fragOffset((((tmp708 >> (16 - tmp709)) & 8191) as u16));
-        let mut tmp910 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp910[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
-        self.ttl = (tmp910)[0 as usize];
-        let mut tmp169 = <u8>::default();
-        let mut tmp915 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp915[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
-        tmp169 = (tmp915)[0 as usize];
-        self.proto = ProtocolNumber::from(tmp169);
-        let mut tmp920 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp920[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
-        let mut tmp921 = 0;
-        while((tmp921 < 2)) {
-            self.checksum = (self.checksum | (((tmp920)[tmp921 as usize] as u16) << ((1 - tmp921) * 8)));
-            tmp921+= 1;
-        }
-        r.read_exact(&mut self.src_addr[0..4 as usize]).map_err(|e| Error::IOError("self.src_addr",e))?;
-        r.read_exact(&mut self.dst_addr[0..4 as usize]).map_err(|e| Error::IOError("self.dst_addr",e))?;
-        if(!(self.ihl() >= 5)) { 
-        return Err(Error::AssertError("(self.ihl() >= 5)"));
-        }
-        let mut tmp176 = (((self.ihl() as u8) * 4) - 20);
-        self.options.to_mut().resize(tmp176 as usize,0);
+        let mut tmp130 = (((self.ihl() as u8) * 4) - 20);
+        self.options.to_mut().resize(tmp130 as usize,0);
         r.read_exact(self.options.to_mut()).map_err(|e| Error::IOError("self.options",e))?;
         return Ok(());
     }
@@ -937,8 +548,8 @@ impl <'a>IPv4Packet<'a> {
         return Err(Error::AssertError("(self.hdr.len >= ((self.hdr.ihl() as u16) * 4))"));
         }
         let mut len = (self.hdr.len - ((self.hdr.ihl() * 4) as u16));
-        let mut tmp188 = len;
-        self.data.to_mut().resize(tmp188 as usize,0);
+        let mut tmp142 = len;
+        self.data.to_mut().resize(tmp142 as usize,0);
         r.read_exact(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
         return Ok(());
     }

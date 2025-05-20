@@ -200,7 +200,9 @@ dependencies = [
 name = "ipv4"
 version = "0.1.0"
 dependencies = [
+ "arp",
  "ethernet",
+ "log",
  "net_common",
  "tokio",
 ]

@@ -1,13 +1,4 @@
 format IPv4Header:
-    version :u4(4) ihl :u4 dscp :u6 ecn :u2 len :u16
-    id :u16 reserved :u1 dont_fragment :u1 more_fragment :u1 frag_offset :u13
-    ttl :u8 proto :ProtocolNumber checksum :u16
-    src_addr :[4]u8
-    dst_addr :[4]u8
-    ihl >= 5
-    options :[u8(ihl)*4-20]u8
-
-format IPv4Header:
     version :u4 ihl :u4 dscp :u6 ecn :u2 len :u16
     id :u16 reserved :u1 dont_fragment :u1 more_fragment :u1 fragOffset :u13
     ttl :u8 proto :ProtocolNumber checksum :u16

@@ -18,6 +18,8 @@ impl std::fmt::Display for MacAddress {
 #[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub struct Ipv4Address(pub [u8; 4]);
 
+pub const UNSPECIFIED : Ipv4Address = Ipv4Address([0, 0, 0, 0]);
+
 impl Ipv4Address {
     pub fn new(a: u8, b: u8, c: u8, d: u8) -> Self {
         Self([a, b, c, d])
@@ -55,6 +57,36 @@ impl Ipv4Prefix {
             mask: Ipv4Address(mask),
             prefix_length,
         }
+    }
+
+    pub fn contains(&self, address: &Ipv4Address) -> bool {
+        let masked_address = Ipv4Address([
+            self.address.0[0] & self.mask.0[0],
+            self.address.0[1] & self.mask.0[1],
+            self.address.0[2] & self.mask.0[2],
+            self.address.0[3] & self.mask.0[3],
+        ]);
+        *address == masked_address
+    }
+
+    pub fn is_network_address(&self,target :Ipv4Address) -> bool {
+        // 下位ビットが0であるかを確認
+        for i in 0..4 {
+            if target.0[i] & !self.mask.0[i] != 0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn is_broadcast_address(&self,target :Ipv4Address) -> bool {
+        // 下位ビットが1であるかを確認
+        for i in 0..4 {
+            if target.0[i] & !self.mask.0[i] != !self.mask.0[i] {
+                return false;
+            }
+        }
+        true
     }
 }
 
