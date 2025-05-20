@@ -17,3 +17,6 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+net_common = { path = "../net_common" }
+ethernet = { path = "../ethernet" }
+tokio = { version = "1", features = ["full"] }

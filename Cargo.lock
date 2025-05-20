@@ -199,6 +199,11 @@ dependencies = [
 [[package]]
 name = "ipv4"
 version = "0.1.0"
+dependencies = [
+ "ethernet",
+ "net_common",
+ "tokio",
+]
 
 [[package]]
 name = "is_terminal_polyfill"
