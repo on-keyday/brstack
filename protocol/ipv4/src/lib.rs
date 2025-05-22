@@ -39,7 +39,7 @@ impl RoutingTable {
     ) {
         let mut node = self.root.write().await;
         let mut node = &mut *node;
-        for i in (0..prefix.prefix_length).rev() {
+        for i in 0..prefix.prefix_length {
             let bit = (prefix.address.0[(i / 8) as usize] >> (7 - (i % 8))) & 1;
             if node.children[bit as usize].is_none() {
                 node.children[bit as usize] = Some(Box::new(RoutingTrieNode::new()));
@@ -61,7 +61,7 @@ impl RoutingTable {
         let mut node = &*node;
         let mut best_entry: Option<&std::sync::Arc<RoutingEntry>> = None;
 
-        for i in (0..32).rev() {
+        for i in 0..32 {
             if let Some(entry) = &node.entry {
                 best_entry = Some(entry);
             }
