@@ -7,6 +7,11 @@ pub struct ICMPService {
 
 impl ICMPService {
     pub fn new(ipv4: ipv4::Router) -> Self {
+        ipv4.register_protocol(ipv4::packet::ProtocolNumber::ICMP, Box::new(
+            ICMPService{
+                ipv4: ipv4.clone(),
+            }
+        ));
         ICMPService {
             ipv4,
         }

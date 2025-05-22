@@ -120,6 +120,7 @@ dependencies = [
  "arp",
  "env_logger",
  "ethernet",
+ "icmp",
  "if-addrs",
  "ipv4",
  "log",

@@ -13,29 +13,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   );
   let arp_table = arp::AddressResolutionTable::default();
   let router = ipv4::Router::new(arp_table.clone());
+  let icmp = icmp::ICMPService::new(router.clone());
   for iface in interfaces {
     let sender = iface.clone();
-    let arp = arp_table.clone();
+    let icmp = icmp.clone();
     tokio::spawn(async move {
-      let dst_mac = if sender.name()=="lo" {
-        *sender.mac_address()
-      } else { 
-        match arp.get_dst_mac(&sender, &dst_ip).await {
-          Ok(mac) => mac,
-          Err(e) => {
-            log::error!("ARP error: {} {}", sender.name(), e);
-            return;
-          }
-        }
-      };
+      let id :u16 = (sender.ipv4_address().address.0[2] as u16) << 8 | sender.ipv4_address().address.0[3] as u16;  
+      let mut seq = 0;
       loop {
-        sender.send(ethernet::frame::EtherType::BRSTACK,
-          // 相手のMACアドレスがわかったので相手のアドレスを指定して通信する
-          &dst_mac,
-          // 規格上は最低46バイト必要だがDocker上ではそれより小さくても普通に通信できる
-          format!("Hello from {}({})!", sender.name(), sender.mac_address()).as_bytes()
-        ).await.unwrap();
+        icmp.send_echo_request(dst_ip, id, seq, b"Hello brstack!").await.unwrap();
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        seq += 1;
       }
     });
     let receiver = iface;

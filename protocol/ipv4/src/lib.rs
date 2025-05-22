@@ -153,15 +153,19 @@ impl Router {
     }
 
     pub fn register_protocol(
-        &mut self,
+        &self,
         proto: packet::ProtocolNumber,
         receiver: Box<dyn IPv4Receiver + Send + Sync>,
     ) {
         self.state.protocols.write().unwrap().insert(proto.into(), receiver);
+        log::info!(
+            "Registered protocol: {}",
+            proto,
+        );
     }
 
     pub async fn add_route(
-        &mut self,
+        &self,
         prefix: net_common::Ipv4Prefix,
         next_hop: net_common::Ipv4Address,
         device: ethernet::NetworkInterface,
