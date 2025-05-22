@@ -103,7 +103,7 @@ impl ipv4::IPv4Receiver for ICMPService {
         let icmp_packet = packet::ICMPv4Packet::decode_exact(&packet.data)?;
         check_checksum(&icmp_packet)?;
         if let Some(echo) = icmp_packet.echo() {
-            log::debug!("Received ICMP echo request: {:?}", echo);
+            log::info!("Received ICMP echo request: {:?}", echo);
             let mut response = icmp_packet.clone();
             response.header.type_ = packet::ICMPv4Type::echo_reply.into();
             response.set_echo_reply(echo.clone())?;

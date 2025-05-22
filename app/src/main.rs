@@ -21,7 +21,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let id :u16 = (sender.ipv4_address().address.0[2] as u16) << 8 | sender.ipv4_address().address.0[3] as u16;  
       let mut seq = 0;
       loop {
-        icmp.send_echo_request(dst_ip, id, seq, b"Hello brstack!").await.unwrap();
+        match icmp.send_echo_request(dst_ip, id, seq, b"Hello brstack!").await {
+          Ok(_) => {
+            log::debug!("Sent echo request: {} {} {}", sender.name(), id, seq);
+          }
+          Err(e) => {
+            log::error!("Error sending echo request: {} {}", sender.name(), e);
+          }
+        }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         seq += 1;
       }
