@@ -86,6 +86,7 @@ struct RouterState {
     protocols: RwLock<std::collections::HashMap<u8, Box<dyn IPv4Receiver + Send + Sync>>>,
 }
 
+#[derive(Clone)]
 pub struct Router {
     state: std::sync::Arc<RouterState>,
 }

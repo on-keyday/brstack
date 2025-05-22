@@ -121,6 +121,7 @@ dependencies = [
  "env_logger",
  "ethernet",
  "if-addrs",
+ "ipv4",
  "log",
  "net_common",
  "tokio",

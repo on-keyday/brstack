@@ -12,6 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dst_ip.octets()[3]
   );
   let arp_table = arp::AddressResolutionTable::default();
+  let router = ipv4::Router::new(arp_table.clone());
   for iface in interfaces {
     let sender = iface.clone();
     let arp = arp_table.clone();
@@ -39,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let receiver = iface;
     let arp = arp_table.clone();
+    let router = router.clone();
     tokio::spawn(async move {
       let receiver = receiver;
       loop {
@@ -52,6 +54,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match arp.receive(frame, &receiver).await {
                   Err(e) => {
                     log::error!("ARP error: {} {}", receiver.name(), e);
+                  }
+                  _ => {}
+                }
+              });
+            }
+            ethernet::frame::EtherType::IPv4 => {
+              let router = router.clone();
+              let receiver = receiver.clone();
+              tokio::spawn(async move {
+                match router.receive(&receiver, &frame).await {
+                  Err(e) => {
+                    log::error!("IPv4 error: {} {}", receiver.name(), e);
                   }
                   _ => {}
                 }
