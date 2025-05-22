@@ -1,6 +1,6 @@
 use std::sync::RwLock;
 
-mod packet;
+pub mod packet;
 pub struct RoutingEntry {
     pub prefix: net_common::Ipv4Prefix,
     pub next_hop: net_common::Ipv4Address,
@@ -77,7 +77,7 @@ impl RoutingTable {
 }
 
 pub trait IPv4Receiver {
-    fn receive(&self, pkt: packet::IPv4Packet<'static>) -> Result<(), Error>;
+    fn receive(&self, pkt: packet::IPv4Packet<'static>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 struct RouterState {
@@ -91,11 +91,13 @@ pub struct Router {
     state: std::sync::Arc<RouterState>,
 }
 
+#[derive(Debug)]
 pub enum Error {
     Packet(packet::Error),
     Ethernet(ethernet::Error),
     Arp(arp::Error),
     Protocol(String),
+    UpperLayerError(Box<dyn std::error::Error>),
 }
 
 impl From<packet::Error> for Error {
@@ -121,6 +123,7 @@ impl std::fmt::Display for Error {
             Error::Ethernet(e) => write!(f, "Ethernet error: {}", e),
             Error::Arp(e) => write!(f, "ARP error: {}", e),
             Error::Protocol(e) => write!(f, "Protocol error: {}", e),
+            Error::UpperLayerError(e) => write!(f, "Upper layer error: {}", e),
         }
     }
 }
@@ -130,8 +133,8 @@ fn check_checksum(hdr: &packet::IPv4Header<'_>) -> Result<(), Error> {
     let mut hdr = hdr.clone();
     hdr.checksum = 0;
     let mut buffer = [0u8; 20];
-    hdr.encode_to_fixed(&mut buffer)?;
-    let computed_checksum = packet::checkSum(std::borrow::Cow::Borrowed(&buffer));
+    let checksum_target = hdr.encode_to_fixed(&mut buffer)?;
+    let computed_checksum = packet::checkSum(std::borrow::Cow::Borrowed(&checksum_target));
     if checksum != computed_checksum {
         return Err(Error::Protocol("Checksum mismatch".to_string()));
     }
@@ -273,7 +276,7 @@ impl Router {
         if let Some(receiver) = protocols.get(&proto.into()) {
             receiver
                 .receive(pkt)
-                .map_err(|e| Error::Protocol(format!("Protocol error: {}", e)))?;
+                .map_err(|e| Error::UpperLayerError(e))?;
         } else {
             log::warn!("No protocol handler for protocol number {}", proto);
         }

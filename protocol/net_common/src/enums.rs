@@ -83,4 +83,81 @@ impl NeighborCacheState {
     }
 }
 /* Unimplemented op: IMMEDIATE_STRING */
+#[derive(Debug,Default, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ICMPv4DstUnreachableCode {
+    #[default]
+    net_unreachable = 0,
+    host_unreachable = 1,
+    protocol_unreachable = 2,
+    port_unreachable = 3,
+    fragmentation_needed = 4,
+    source_route_failed = 5,
+    network_unknown = 6,
+    host_unknown = 7,
+    network_prohibited = 8,
+    host_prohibited = 9,
+    TOS_network_unreachable = 10,
+    TOS_host_unreachable = 11,
+    communication_prohibited = 12,
+    host_precedence_violation = 13,
+    precedence_cutoff = 14,
+}
+impl std::fmt::Display for ICMPv4DstUnreachableCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self as u8 {
+            0 => write!(f, "{}", "net_unreachable"),
+            1 => write!(f, "{}", "host_unreachable"),
+            2 => write!(f, "{}", "protocol_unreachable"),
+            3 => write!(f, "{}", "port_unreachable"),
+            4 => write!(f, "{}", "fragmentation_needed"),
+            5 => write!(f, "{}", "source_route_failed"),
+            6 => write!(f, "{}", "network_unknown"),
+            7 => write!(f, "{}", "host_unknown"),
+            8 => write!(f, "{}", "network_prohibited"),
+            9 => write!(f, "{}", "host_prohibited"),
+            10 => write!(f, "{}", "TOS_network_unreachable"),
+            11 => write!(f, "{}", "TOS_host_unreachable"),
+            12 => write!(f, "{}", "communication_prohibited"),
+            13 => write!(f, "{}", "host_precedence_violation"),
+            14 => write!(f, "{}", "precedence_cutoff"),
+            _ => write!(f, "ICMPv4DstUnreachableCode({})",*self as u8),
+        }
+    }
+}
+impl ICMPv4DstUnreachableCode {
+    pub fn is_known(&self) -> bool {
+        match *self as u8 {
+            0 => true,
+            1 => true,
+            2 => true,
+            3 => true,
+            4 => true,
+            5 => true,
+            6 => true,
+            7 => true,
+            8 => true,
+            9 => true,
+            10 => true,
+            11 => true,
+            12 => true,
+            13 => true,
+            14 => true,
+            _ => false,
+        }
+    }
+}
+impl std::convert::From<u8> for ICMPv4DstUnreachableCode {
+    fn from(e: u8) -> Self {
+        unsafe { std::mem::transmute(e) }
+    }
+}
+impl std::convert::From<ICMPv4DstUnreachableCode> for u8 {
+    fn from(e: ICMPv4DstUnreachableCode) -> Self {
+        unsafe { std::mem::transmute(e) }
+    }
+}
+/* Unimplemented op: IMMEDIATE_STRING */
+/* Unimplemented op: METADATA */
+/* Unimplemented op: IMMEDIATE_STRING */
 /* Unimplemented op: METADATA */

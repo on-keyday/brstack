@@ -37,6 +37,7 @@ pub struct AddressResolutionTable {
     state :std::sync::Arc<AddressResolutionTableState>,
 }
 
+#[derive(Debug)]
 pub enum Error {
     Packet(packet::Error),
     Ethernet(ethernet::Error),

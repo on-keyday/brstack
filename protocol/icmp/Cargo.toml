@@ -17,3 +17,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+ipv4 = { path = "../ipv4" }
+net_common = { path = "../net_common" }
+log = "0.4.25"
+tokio = { version = "1", features = ["full"] }

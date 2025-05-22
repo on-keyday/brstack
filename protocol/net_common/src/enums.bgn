@@ -6,3 +6,21 @@ enum NeighborCacheState:
     DELAY
     PROBE
     FAILED
+config.url = "https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-codes-3"
+enum ICMPv4DstUnreachableCode:
+    :u8
+    net_unreachable
+    host_unreachable
+    protocol_unreachable
+    port_unreachable
+    fragmentation_needed
+    source_route_failed
+    network_unknown
+    host_unknown
+    network_prohibited
+    host_prohibited
+    TOS_network_unreachable
+    TOS_host_unreachable
+    communication_prohibited
+    host_precedence_violation
+    precedence_cutoff

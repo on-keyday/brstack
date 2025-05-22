@@ -30,3 +30,10 @@ fn checkSum(data :[]u8) -> u16:
     for sum > 0xffff:
         sum = (sum & 0xffff) + (sum >> 16)
     return u16(!sum) # bit not(Rust方式)
+
+format IPv4PseudoHeader:
+    srcAddr :[4]u8
+    dstAddr :[4]u8
+    zero :u8
+    protocol :ProtocolNumber
+    length :u16
