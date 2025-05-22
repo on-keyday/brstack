@@ -100,3 +100,4 @@ impl std::fmt::Display for Ipv4Prefix {
 mod enums;
 pub use enums::NeighborCacheState;
 pub use enums::ICMPv4DstUnreachableCode;
+pub use enums::ICMPv4TimeExceededCode;

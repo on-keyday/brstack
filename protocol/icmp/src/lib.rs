@@ -51,6 +51,15 @@ impl ICMPService {
         unreachable.data = std::borrow::Cow::Borrowed(&received_data);
         self.send(dst_addr, packet).await
     }
+
+    pub async fn send_time_exceeded(&self, dst_addr: net_common::Ipv4Address,code :net_common::ICMPv4TimeExceededCode, received_data :&[u8]) -> Result<(), Error> {
+        let mut packet = packet::ICMPv4Packet::default();
+        packet.header.type_ = packet::ICMPv4Type::time_exceeded.into();
+        packet.header.code = code.into();
+        let mut time_exceeded = packet::ICMPTimeExceeded::default();
+        time_exceeded.data = std::borrow::Cow::Borrowed(&received_data);
+        self.send(dst_addr, packet).await
+    }
 }
 
 #[derive(Debug)]
@@ -117,6 +126,8 @@ impl ipv4::IPv4Receiver for ICMPService {
             log::info!("Received ICMP echo reply: {:?}", reply);
         } else if let Some(dst_unreachable) = icmp_packet.destination_unreachable() {
             log::info!("Received ICMP destination unreachable: {:?}", dst_unreachable);
+        } else if let Some(time_exceeded) = icmp_packet.time_exceeded() {
+            log::info!("Received ICMP time exceeded: {:?}", time_exceeded);
         } else {
             log::warn!("Received unknown ICMP packet: {:?}", icmp_packet);
         }

@@ -24,3 +24,8 @@ enum ICMPv4DstUnreachableCode:
     communication_prohibited
     host_precedence_violation
     precedence_cutoff
+
+enum ICMPv4TimeExceededCode:
+    :u8
+    ttl_exceeded_in_transit
+    frag_reassembly_time_exceeded

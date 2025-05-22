@@ -157,6 +157,41 @@ impl std::convert::From<ICMPv4DstUnreachableCode> for u8 {
         unsafe { std::mem::transmute(e) }
     }
 }
+#[derive(Debug,Default, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ICMPv4TimeExceededCode {
+    #[default]
+    ttl_exceeded_in_transit = 0,
+    frag_reassembly_time_exceeded = 1,
+}
+impl std::fmt::Display for ICMPv4TimeExceededCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self as u8 {
+            0 => write!(f, "{}", "ttl_exceeded_in_transit"),
+            1 => write!(f, "{}", "frag_reassembly_time_exceeded"),
+            _ => write!(f, "ICMPv4TimeExceededCode({})",*self as u8),
+        }
+    }
+}
+impl ICMPv4TimeExceededCode {
+    pub fn is_known(&self) -> bool {
+        match *self as u8 {
+            0 => true,
+            1 => true,
+            _ => false,
+        }
+    }
+}
+impl std::convert::From<u8> for ICMPv4TimeExceededCode {
+    fn from(e: u8) -> Self {
+        unsafe { std::mem::transmute(e) }
+    }
+}
+impl std::convert::From<ICMPv4TimeExceededCode> for u8 {
+    fn from(e: ICMPv4TimeExceededCode) -> Self {
+        unsafe { std::mem::transmute(e) }
+    }
+}
 /* Unimplemented op: IMMEDIATE_STRING */
 /* Unimplemented op: METADATA */
 /* Unimplemented op: IMMEDIATE_STRING */
