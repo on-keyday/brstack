@@ -1,0 +1,80 @@
+format ICMPv4Packet:
+    header: ICMPHeader
+    match ICMPv4Type(header.type):
+        ICMPv4Type.echo:
+            echo: ICMPEcho
+        ICMPv4Type.echo_reply:
+            echo_reply: ICMPEcho
+        ICMPv4Type.time_exceeded:
+            time_exceeded: ICMPTimeExceeded
+        ICMPv4Type.dst_unreachable:
+            destination_unreachable: ICMPDestinationUnreachable
+        ICMPv4Type.redirect:
+            redirect: ICMPRedirect
+        ICMPv4Type.parameter_problem:
+            parameter_problem: ICMPParameterProblem
+        ICMPv4Type.timestamp:
+            timestamp: ICMPTimestamp
+        ICMPv4Type.timestamp_reply:
+            timestamp_reply: ICMPTimestamp
+        ..:
+            data: [..]u8
+format ICMPHeader:
+    type: u8
+    code: u8
+    checksum: u16
+
+format ICMPTimeExceeded:
+    unused :u32
+    data: [..]u8
+
+format ICMPEcho:
+    id: u16
+    seq: u16
+    data: [..]u8
+
+
+format ICMPDestinationUnreachable:
+    unused: u16
+    next_hop_mtu: u16
+    data: [..]u8
+
+format ICMPPacketTooBig:
+    unused: u32
+    mtu: u32
+    data: [..]u8
+
+format ICMPRedirect:
+    gateway: [4]u8
+    data: [..]u8
+
+format ICMPTimestamp:
+    id: u16
+    seq: u16
+    originate: u32
+    receive: u32
+    transmit: u32
+
+format ICMPParameterProblem:
+    pointer: u8
+    unused: u24
+    data: [..]u8
+
+enum ICMPv4Type:
+    :u8
+    echo_reply
+    reserved_1
+    reserved_2
+    dst_unreachable
+    src_quench
+    redirect
+    alt_host_address
+    reserved_3
+    echo
+    router_advertisement
+    router_solicitation
+    time_exceeded
+    parameter_problem
+    timestamp
+    timestamp_reply
+
