@@ -1,7 +1,7 @@
 
 fn parse_routing_table(routing: &str, interfaces: Vec<ethernet::NetworkInterface>) -> Vec<(net_common::Ipv4Prefix, net_common::Ipv4Address, ethernet::NetworkInterface)> {
     routing
-        .split(" ")
+        .split(" ").filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .chunks(2)
         .map(|chunk| {
