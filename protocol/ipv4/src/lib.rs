@@ -132,7 +132,7 @@ fn check_checksum(hdr: &packet::IPv4Header<'_>) -> Result<(), Error> {
     let checksum = hdr.checksum;
     let mut hdr = hdr.clone();
     hdr.checksum = 0;
-    let mut buffer = [0u8; 20];
+    let mut buffer = [0u8; 100];
     let checksum_target = hdr.encode_to_fixed(&mut buffer)?;
     let computed_checksum = packet::checkSum(std::borrow::Cow::Borrowed(&checksum_target));
     if checksum != computed_checksum {

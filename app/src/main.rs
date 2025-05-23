@@ -60,13 +60,16 @@ fn parse_routing_table(routing: &str, interfaces: Vec<ethernet::NetworkInterface
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   env_logger::init();
   let interfaces = ethernet::get_interfaces()?;
-  let dst_ip = std::env::var("DST").unwrap().parse::<std::net::Ipv4Addr>()?;
-  let dst_ip = net_common::Ipv4Address::new(
-    dst_ip.octets()[0],
-    dst_ip.octets()[1],
-    dst_ip.octets()[2],
-    dst_ip.octets()[3]
-  );
+  // DSTがある場合は、環境変数から取得する(でなければNone)
+  let dst_ip = std::env::var("DST").ok().map(|v| {
+    let v = v.parse::<std::net::Ipv4Addr>().unwrap();
+    net_common::Ipv4Address::new(
+      v.octets()[0],
+      v.octets()[1],
+      v.octets()[2],
+      v.octets()[3]
+    )
+  });
   let routing = std::env::var("ROUTING").expect("ROUTING should be set");
   let routing = parse_routing_table(&routing, interfaces.clone());
   let arp_table = arp::AddressResolutionTable::default();
@@ -76,26 +79,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   }
   let icmp = icmp::ICMPService::new(router.clone());
   for iface in interfaces {
-    if iface.ipv4_address().contains(&dst_ip) {
-      let sender = iface.clone();
-      let icmp = icmp.clone();
-      tokio::spawn(async move {
-        let id :u16 = (sender.ipv4_address().address.0[2] as u16) << 8 | sender.ipv4_address().address.0[3] as u16;  
-        let mut seq = 0;
-        loop {
-          match icmp.send_echo_request(dst_ip, id, seq, b"Hello brstack!").await {
-            Ok(_) => {
-              log::info!("Sent echo request: {} id: {} seq: {}", sender.name(), id, seq);
-            }
-            Err(e) => {
-              log::error!("Error sending echo request: {} {}", sender.name(), e);
-            }
-          }
-          tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-          seq += 1;
-        }
-      });
-    }
     let receiver = iface;
     let arp = arp_table.clone();
     let router = router.clone();
@@ -144,6 +127,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::error!("Error receiving frame: {:?}", e);
           }
         }
+      }
+    });
+  }
+  if let Some(dst_ip) = dst_ip {
+  let icmp = icmp.clone();
+    tokio::spawn(async move {
+      let id :u16 = dst_ip.0[3] as u16;
+      let mut seq = 0;
+      loop {
+        match icmp.send_echo_request(dst_ip, id, seq, b"Hello brstack!").await {
+          Ok(_) => {
+            log::info!("Sent echo request: {} id: {} seq: {}", dst_ip, id, seq);
+          }
+          Err(e) => {
+            log::error!("Error sending echo request: {} {}",dst_ip, e);
+          }
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        seq += 1;
       }
     });
   }
