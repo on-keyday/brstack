@@ -269,7 +269,11 @@ impl Router {
         )
         .await
         .unwrap_or_else(|e| {
-            log::error!("Failed to route packet: {}", e);
+            log::error!("Failed to route packet from {} to {}: {}", 
+                net_common::Ipv4Address(pkt.hdr.src_addr),
+                net_common::Ipv4Address(pkt.hdr.dst_addr),
+                e,
+            );
         });
     }
 
