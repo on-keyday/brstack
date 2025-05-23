@@ -192,6 +192,7 @@ impl Router {
         &self,
         proto: packet::ProtocolNumber,
         ttl: u8,
+        src_addr: net_common::Ipv4Address,
         dst_addr: net_common::Ipv4Address,
         dst_mac: &net_common::MacAddress,
         device: &ethernet::NetworkInterface,
@@ -207,7 +208,7 @@ impl Router {
         pkt.hdr.set_version(4);
         pkt.hdr.set_ihl(5);
         pkt.hdr.dst_addr = dst_addr.0;
-        pkt.hdr.src_addr = device.ipv4_address().address.0;
+        pkt.hdr.src_addr = src_addr.0;
         pkt.hdr.proto = proto;
         pkt.hdr.len = (data.len() + 20) as u16;
         pkt.hdr.checksum = 0;
@@ -229,6 +230,7 @@ impl Router {
         &self,
         proto: packet::ProtocolNumber,
         ttl: u8,
+        src_addr: Option<net_common::Ipv4Address>,
         dst_addr: net_common::Ipv4Address,
         data: &[u8],
     ) -> Result<(), Error> {
@@ -240,7 +242,24 @@ impl Router {
                 entry.next_hop
             };
             let dst_mac = self.state.arp.get_dst_mac(&entry.device, &resolve_target).await?;
-            self.send_direct(proto, ttl, dst_addr, &dst_mac, &entry.device, data)
+            let src_addr = src_addr.unwrap_or_else(|| entry.device.ipv4_address().address);
+            if resolve_target != dst_addr {
+                log::debug!(
+                    "Routing packet from {} to {} via {} at device {}",
+                    src_addr,
+                    dst_addr,
+                    resolve_target,
+                    entry.device.name(),
+                );
+            } else {
+                log::debug!(
+                    "Routing packet from {} to {} at device {}",
+                    src_addr,
+                    dst_addr,
+                    entry.device.name(),
+                );
+            }
+            self.send_direct(proto, ttl, src_addr, dst_addr, &dst_mac, &entry.device, data)
                 .await
         } else {
             Err(Error::Protocol("No route to host".to_string()))
@@ -253,7 +272,7 @@ impl Router {
         dst_addr: net_common::Ipv4Address,
         data: &[u8],
     ) -> Result<(), Error> {
-        self.send_routed(proto, 64, dst_addr, data).await
+        self.send_routed(proto, 64,None, dst_addr, data).await
     }
 
     async fn route(&self, pkt: packet::IPv4Packet<'_>) {
@@ -264,6 +283,7 @@ impl Router {
         self.send_routed(
             pkt.hdr.proto,
             pkt.hdr.ttl - 1,
+            Some(net_common::Ipv4Address(pkt.hdr.src_addr)),
             net_common::Ipv4Address(pkt.hdr.dst_addr),
             pkt.data.as_ref(),
         )
