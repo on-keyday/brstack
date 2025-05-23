@@ -40,7 +40,7 @@ services:
      - NET_ADMIN # nftablesを使用するために必要
      - NET_RAW # raw socketを使用するために必要
     environment:
-      - ROUTING=192.168.1.0/24 0.0.0.0
+      - ROUTING=192.168.1.0/24 0.0.0.0 192.168.0.0/24 192.168.1.3
     networks:
       router_server:
         ipv4_address: 192.168.1.2
