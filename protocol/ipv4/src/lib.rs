@@ -170,7 +170,22 @@ impl Router {
         next_hop: net_common::Ipv4Address,
         device: ethernet::NetworkInterface,
     ) {
+        let name = device.name().to_string();
         self.state.routing_table.insert(prefix, next_hop, device).await;
+        if next_hop != net_common::Ipv4Address([0, 0, 0, 0]) {
+            log::info!(
+                "Added route: {} via {} at device {}",
+                prefix,
+                next_hop,
+                name,
+            );
+        } else {
+            log::info!(
+                "Added route: {} is directly connected at device {}",
+                prefix,
+                name,
+            );
+        }
     }
 
     async fn send_direct(

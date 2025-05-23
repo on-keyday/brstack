@@ -60,13 +60,19 @@ impl Ipv4Prefix {
     }
 
     pub fn contains(&self, address: &Ipv4Address) -> bool {
-        let masked_address = Ipv4Address([
+        let masked_self_address = Ipv4Address([
             self.address.0[0] & self.mask.0[0],
             self.address.0[1] & self.mask.0[1],
             self.address.0[2] & self.mask.0[2],
             self.address.0[3] & self.mask.0[3],
         ]);
-        *address == masked_address
+        let masked_address = Ipv4Address([
+            address.0[0] & self.mask.0[0],
+            address.0[1] & self.mask.0[1],
+            address.0[2] & self.mask.0[2],
+            address.0[3] & self.mask.0[3],
+        ]);
+        masked_self_address == masked_address
     }
 
     pub fn is_network_address(&self,target :Ipv4Address) -> bool {

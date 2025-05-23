@@ -1,3 +1,5 @@
+use core::net;
+
 mod packet;
 
 #[derive(Clone)]
@@ -111,25 +113,26 @@ impl ipv4::IPv4Receiver for ICMPService {
     fn receive(&self, packet: ipv4::packet::IPv4Packet<'static>) -> Result<(), Box<dyn std::error::Error>> {
         let icmp_packet = packet::ICMPv4Packet::decode_exact(&packet.data)?;
         check_checksum(&icmp_packet)?;
+        let src_addr = net_common::Ipv4Address(packet.hdr.src_addr);
         if let Some(echo) = icmp_packet.echo() {
-            log::info!("Received ICMP echo request: {:?}", echo);
+            log::info!("Received ICMP echo request from {}: {:?}",src_addr, echo);
             let mut response = icmp_packet.clone();
             response.header.type_ = packet::ICMPv4Type::echo_reply.into();
             response.set_echo_reply(echo.clone())?;
             let icmp = self.clone();
             tokio::spawn(async move {
-                if let Err(e) = icmp.send(net_common::Ipv4Address(packet.hdr.src_addr), response).await {
+                if let Err(e) = icmp.send(src_addr, response).await {
                     log::error!("ICMP send error: {}", e);
                 }
             });           
         } else if let Some(reply) = icmp_packet.echo_reply() {
-            log::info!("Received ICMP echo reply: {:?}", reply);
+            log::info!("Received ICMP echo reply from {}: {:?}", src_addr, reply);
         } else if let Some(dst_unreachable) = icmp_packet.destination_unreachable() {
-            log::info!("Received ICMP destination unreachable: {:?}", dst_unreachable);
+            log::info!("Received ICMP destination unreachable from {}: {:?}", src_addr, dst_unreachable);
         } else if let Some(time_exceeded) = icmp_packet.time_exceeded() {
-            log::info!("Received ICMP time exceeded: {:?}", time_exceeded);
+            log::info!("Received ICMP time exceeded from {}: {:?}", src_addr, time_exceeded);
         } else {
-            log::warn!("Received unknown ICMP packet: {:?}", icmp_packet);
+            log::warn!("Received unknown ICMP packet from {}: {:?}", src_addr, icmp_packet);
         }
         Ok(())
     }

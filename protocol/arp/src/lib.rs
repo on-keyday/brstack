@@ -1,4 +1,3 @@
-use core::net;
 
 mod packet;
 

@@ -16,6 +16,7 @@ services:
      - NET_RAW # raw socketを使用するために必要
     environment:
       - DST=192.168.0.3
+      - ROUTING=192.168.0.0/24 0.0.0.0
     networks:
       client_server:
         ipv4_address: 192.168.0.2
@@ -27,6 +28,7 @@ services:
      - NET_RAW # raw socketを使用するために必要
     environment:
       - DST=192.168.0.2
+      - ROUTING=192.168.0.0/24 0.0.0.0
     networks:
       client_server:
         ipv4_address: 192.168.0.3
