@@ -5,52 +5,125 @@ services:
       context: .
       dockerfile: Dockerfile
       tags:
-        - brstack_app:latest
+      - brstack_app:latest
     profiles:
-      - build_only
-
-  client:
+    - build_only
+  client1:
     image: brstack_app:latest
     cap_add:
-     - NET_ADMIN # nftablesを使用するために必要
-     - NET_RAW # raw socketを使用するために必要
+    - NET_ADMIN
+    - NET_RAW
     environment:
-      - DST=192.168.1.2
-      - ROUTING=192.168.0.0/24 0.0.0.0 192.168.1.0/24 192.168.0.3
+      ROLE: client
+      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.11
+      DST: 10.0.2.13
     networks:
-      client_router:
-        ipv4_address: 192.168.0.2
-  
-  router:
+      net_client_r1:
+        ipv4_address: 10.0.0.10
+  client2:
     image: brstack_app:latest
     cap_add:
-     - NET_ADMIN # nftablesを使用するために必要
-     - NET_RAW # raw socketを使用するために必要
+    - NET_ADMIN
+    - NET_RAW
     environment:
-      - ROUTING=192.168.1.0/24 0.0.0.0 192.168.0.0/24 0.0.0.0
+      ROLE: client
+      ROUTING: 10.0.1.0/24 0.0.0.0 0.0.0.0/0 10.0.1.11
+      DST: 10.0.2.13
     networks:
-      client_router:
-        ipv4_address: 192.168.0.3
-      router_server:
-        ipv4_address: 192.168.1.3
-
-  server:
+      net_r1_r2:
+        ipv4_address: 10.0.1.10
+  client3:
     image: brstack_app:latest
     cap_add:
-     - NET_ADMIN # nftablesを使用するために必要
-     - NET_RAW # raw socketを使用するために必要
+    - NET_ADMIN
+    - NET_RAW
     environment:
-      - ROUTING=192.168.1.0/24 0.0.0.0 192.168.0.0/24 192.168.1.3
+      ROLE: client
+      ROUTING: 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.11
+      DST: 10.0.1.10
     networks:
-      router_server:
-        ipv4_address: 192.168.1.2
-
+      net_r2_server:
+        ipv4_address: 10.0.2.10
+  client4:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    environment:
+      ROLE: client
+      ROUTING: 10.0.3.0/24 0.0.0.0 0.0.0.0/0 10.0.3.11
+      DST: 10.0.2.13
+    networks:
+      net_r3_client:
+        ipv4_address: 10.0.3.10
+  router1:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    environment:
+      ROLE: router
+      ROUTING: 10.0.0.0/24 0.0.0.0 10.0.1.0/24 0.0.0.0 0.0.0.0/0 10.0.1.12
+    networks:
+      net_client_r1:
+        ipv4_address: 10.0.0.11
+      net_r1_r2:
+        ipv4_address: 10.0.1.11
+  router2:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    environment:
+      ROLE: router
+      ROUTING: 10.0.1.0/24 0.0.0.0 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.12
+    networks:
+      net_r1_r2:
+        ipv4_address: 10.0.1.12
+      net_r2_server:
+        ipv4_address: 10.0.2.11
+  router3:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    environment:
+      ROLE: router
+      ROUTING: 10.0.0.0/24 0.0.0.0 10.0.2.0/24 0.0.0.0 10.0.3.0/24 0.0.0.0 0.0.0.0/0
+        10.0.0.11
+    networks:
+      net_client_r1:
+        ipv4_address: 10.0.0.12
+      net_r2_server:
+        ipv4_address: 10.0.2.12
+      net_r3_client:
+        ipv4_address: 10.0.3.11
+  server1:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    environment:
+      ROLE: server
+      ROUTING: 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.12
+    networks:
+      net_r2_server:
+        ipv4_address: 10.0.2.13
 networks:
-  client_router:
+  net_client_r1:
     ipam:
       config:
-        - subnet: 192.168.0.0/24
-  router_server:
+      - subnet: 10.0.0.0/24
+  net_r1_r2:
     ipam:
       config:
-        - subnet: 192.168.1.0/24
+      - subnet: 10.0.1.0/24
+  net_r2_server:
+    ipam:
+      config:
+      - subnet: 10.0.2.0/24
+  net_r3_client:
+    ipam:
+      config:
+      - subnet: 10.0.3.0/24
+

@@ -2,3 +2,5 @@ target/
 ignore/
 *.log
 *.tmp
+.venv/
+ignore/

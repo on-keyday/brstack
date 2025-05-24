@@ -1,0 +1,126 @@
+{
+    "networks": [
+        {
+            "name": "net_client_r1"
+        },
+        {
+            "name": "net_r1_r2"
+        },
+        {
+            "name": "net_r2_server"
+        },
+        {
+            "name": "net_r3_client"
+        }
+    ],
+    "nodes": [
+        {
+            "name": "client1",
+            "role": "client",
+            "connections": [
+                {
+                    "network": "net_client_r1"
+                }
+            ],
+            "dest_server": "server1"
+        },
+        {
+            "name": "client2",
+            "role": "client",
+            "connections": [
+                {
+                    "network": "net_r1_r2"
+                }
+            ],
+            "dest_server": "server1"
+        },
+        {
+            "name": "client3",
+            "role": "client",
+            "connections": [
+                {
+                    "network": "net_r2_server"
+                }
+            ],
+            "dest_server": "client2"
+        },
+        {
+            "name": "client4",
+            "role": "client",
+            "connections": [
+                {
+                    "network": "net_r3_client"
+                }
+            ],
+            "dest_server": "server1"
+        },
+        {
+            "name": "router1",
+            "role": "router",
+            "connections": [
+                {
+                    "network": "net_client_r1"
+                },
+                {
+                    "network": "net_r1_r2"
+                }
+            ],
+            "static_routes": [
+                {
+                    "target_network": "default",
+                    "next_hop_node": "router2"
+                }
+            ]
+        },
+        {
+            "name": "router2",
+            "role": "router",
+            "connections": [
+                {
+                    "network": "net_r1_r2"
+                },
+                {
+                    "network": "net_r2_server"
+                }
+            ],
+            "static_routes": [
+                {
+                    "target_network": "default",
+                    "next_hop_node": "router3"
+                }
+            ]
+        },
+        {
+            "name": "router3",
+            "role": "router",
+            "connections": [
+                {
+                    "network": "net_client_r1"
+                },
+                {
+                    "network": "net_r2_server"
+                },
+                {
+                    "network": "net_r3_client"
+                }
+            ],
+            "static_routes": [
+                {
+                    "target_network": "default",
+                    "next_hop_node": "router1"
+                }
+            ]
+        },
+        {
+            "name": "server1",
+            "role": "server",
+            "connections": [
+                {
+                    "network": "net_r2_server"
+                }
+            ],
+            "static_routes": [
+            ]
+        }
+    ]
+}
