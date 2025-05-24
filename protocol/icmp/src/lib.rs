@@ -1,5 +1,7 @@
 use core::net;
 
+use ipv4::ICMPSender;
+
 mod packet;
 
 #[derive(Clone)]
@@ -14,6 +16,11 @@ impl ICMPService {
                 ipv4: ipv4.clone(),
             }
         ));
+        ipv4.register_icmp_sender(Box::new(
+            ICMPService{
+                ipv4: ipv4.clone(),
+            }
+        ));
         ICMPService {
             ipv4,
         }
@@ -21,7 +28,7 @@ impl ICMPService {
 
     async fn send(&self,dst_addr :net_common::Ipv4Address, mut packet: packet::ICMPv4Packet<'_>) -> Result<(), Error> {
         packet.header.checksum = 0;
-        let mut buffer = [0u8; 100];
+        let mut buffer = [0u8; 2048];
         let checksum_target = packet.encode_to_fixed(&mut buffer)?;
         packet.header.checksum = ipv4::packet::checkSum(std::borrow::Cow::Borrowed(&checksum_target));
         let final_encoded = packet.encode_to_fixed(&mut buffer)?;
@@ -51,6 +58,7 @@ impl ICMPService {
         let mut unreachable = packet::ICMPDestinationUnreachable::default();
         unreachable.next_hop_mtu = next_hop_mtu;
         unreachable.data = std::borrow::Cow::Borrowed(&received_data);
+        packet.set_destination_unreachable(unreachable)?;
         self.send(dst_addr, packet).await
     }
 
@@ -60,6 +68,7 @@ impl ICMPService {
         packet.header.code = code.into();
         let mut time_exceeded = packet::ICMPTimeExceeded::default();
         time_exceeded.data = std::borrow::Cow::Borrowed(&received_data);
+        packet.set_time_exceeded(time_exceeded)?;
         self.send(dst_addr, packet).await
     }
 }
@@ -135,5 +144,43 @@ impl ipv4::IPv4Receiver for ICMPService {
             log::warn!("Received unknown ICMP packet from {}: {:?}", src_addr, icmp_packet);
         }
         Ok(())
+    }
+}
+
+
+impl ipv4::ICMPSender for ICMPService {
+    fn send_destination_unreachable(
+            &self,
+            next_hop_mtu: u16,
+            code : net_common::ICMPv4DstUnreachableCode,
+            original_packet: ipv4::packet::IPv4Packet<'_>,
+        ) {
+        let mut buffer = [0u8; 2048];
+        let len = original_packet.encode_to_fixed(&mut buffer).unwrap().len();
+        let icmp =self.clone();
+        tokio::spawn(async move {
+            let src_addr = net_common::Ipv4Address(original_packet.hdr.src_addr);
+            match icmp.send_destination_unreachable(src_addr, code,next_hop_mtu,&buffer[..std::cmp::min(len, 576)]).await {
+                Ok(_) => log::info!("Sent ICMP destination unreachable to {}", src_addr),
+                Err(e) => log::error!("Failed to send ICMP destination unreachable: {}", e),
+            }
+        });
+    }
+
+    fn send_time_exceeded(
+            &self,
+            code :net_common::ICMPv4TimeExceededCode,
+            original_packet: ipv4::packet::IPv4Packet<'_>,
+        ) {
+        let mut buffer = [0u8; 2048];
+        let len = original_packet.encode_to_fixed(&mut buffer).unwrap().len();
+        let icmp =self.clone();
+        tokio::spawn(async move {
+            let src_addr = net_common::Ipv4Address(original_packet.hdr.src_addr);
+            match icmp.send_time_exceeded(src_addr, code,&buffer[..std::cmp::min(len, 576)]).await {
+                Ok(_) => log::info!("Sent ICMP time exceeded to {}", src_addr),
+                Err(e) => log::error!("Failed to send ICMP time exceeded: {}", e),
+            }
+        });
     }
 }

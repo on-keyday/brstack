@@ -1,3 +1,4 @@
+use core::net;
 use std::sync::RwLock;
 
 pub mod packet;
@@ -80,10 +81,25 @@ pub trait IPv4Receiver {
     fn receive(&self, pkt: packet::IPv4Packet<'static>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
+pub trait ICMPSender {
+    fn send_time_exceeded(
+        &self,
+        code :net_common::ICMPv4TimeExceededCode,
+        original_packet: packet::IPv4Packet<'_>,
+    );
+    fn send_destination_unreachable(
+        &self,
+        next_hop_mtu: u16,
+        code : net_common::ICMPv4DstUnreachableCode,
+        original_packet: packet::IPv4Packet<'_>,
+    );
+}
+
 struct RouterState {
     routing_table: RoutingTable,
     arp: arp::AddressResolutionTable,
     protocols: RwLock<std::collections::HashMap<u8, Box<dyn IPv4Receiver + Send + Sync>>>,
+    icmp_sender: RwLock<Option<Box<dyn ICMPSender + Send + Sync>>>,
 }
 
 #[derive(Clone)]
@@ -92,11 +108,19 @@ pub struct Router {
 }
 
 #[derive(Debug)]
+enum ProtocolError {
+    NoRouteToHost,
+    ChecksumMismatch,
+    PacketTooLarge(usize,usize),
+    UnsupportedProtocol,
+}
+
+#[derive(Debug)]
 pub enum Error {
     Packet(packet::Error),
     Ethernet(ethernet::Error),
     Arp(arp::Error),
-    Protocol(String),
+    Protocol(ProtocolError),
     UpperLayerError(Box<dyn std::error::Error>),
 }
 
@@ -113,6 +137,17 @@ impl From<arp::Error> for Error {
 impl From<ethernet::Error> for Error {
     fn from(err: ethernet::Error) -> Self {
         Error::Ethernet(err)
+    }
+}
+
+impl std::fmt::Display for ProtocolError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProtocolError::NoRouteToHost => write!(f, "No route to host"),
+            ProtocolError::ChecksumMismatch => write!(f, "Checksum mismatch"),
+            ProtocolError::PacketTooLarge(size,limit) => write!(f, "Packet too large: {} bytes (limit: {} bytes)", size, limit),
+            ProtocolError::UnsupportedProtocol => write!(f, "Unsupported protocol"),
+        }
     }
 }
 
@@ -136,7 +171,7 @@ fn check_checksum(hdr: &packet::IPv4Header<'_>) -> Result<(), Error> {
     let checksum_target = hdr.encode_to_fixed(&mut buffer)?;
     let computed_checksum = packet::checkSum(std::borrow::Cow::Borrowed(&checksum_target));
     if checksum != computed_checksum {
-        return Err(Error::Protocol("Checksum mismatch".to_string()));
+        return Err(Error::Protocol(ProtocolError::ChecksumMismatch));
     }
     Ok(())
 }
@@ -148,8 +183,17 @@ impl Router {
                 routing_table: RoutingTable::new(),
                 arp,
                 protocols: RwLock::new(std::collections::HashMap::new()),
+                icmp_sender: RwLock::new(None),
             }),
         }
+    }
+
+    pub fn register_icmp_sender(
+        &self,
+        sender: Box<dyn ICMPSender + Send + Sync>,
+    ) {
+        *self.state.icmp_sender.write().unwrap() = Some(sender);
+        log::info!("Registered ICMP sender");
     }
 
     pub fn register_protocol(
@@ -199,10 +243,7 @@ impl Router {
         data: &[u8],
     ) -> Result<(), Error> {
         if data.len() > 2048 {
-            return Err(Error::Protocol(format!(
-                "Data length exceeds 2048 bytes: {}",
-                data.len()
-            )));
+            return Err(Error::Protocol(ProtocolError::PacketTooLarge(data.len(), 2048)));
         }
         let mut pkt = packet::IPv4Packet::default();
         pkt.hdr.set_version(4);
@@ -262,7 +303,7 @@ impl Router {
             self.send_direct(proto, ttl, src_addr, dst_addr, &dst_mac, &entry.device, data)
                 .await
         } else {
-            Err(Error::Protocol("No route to host".to_string()))
+            Err(Error::Protocol(ProtocolError::NoRouteToHost))
         }
     }
 
@@ -278,6 +319,12 @@ impl Router {
     async fn route(&self, pkt: packet::IPv4Packet<'_>) {
         if pkt.hdr.ttl <= 1 {
             log::warn!("TTL expired");
+            if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
+                icmp_sender.send_time_exceeded(
+                    net_common::ICMPv4TimeExceededCode::ttl_exceeded_in_transit,
+                    pkt,
+                );
+            }
             return;
         }
         self.send_routed(
@@ -294,6 +341,27 @@ impl Router {
                 net_common::Ipv4Address(pkt.hdr.dst_addr),
                 e,
             );
+            match e {
+                Error::Protocol(ProtocolError::NoRouteToHost) => {
+                    if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
+                        icmp_sender.send_destination_unreachable(
+                            0,
+                            net_common::ICMPv4DstUnreachableCode::net_unreachable,
+                            pkt,
+                        );
+                    }
+                }                
+                Error::Arp(_) => {
+                    if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
+                        icmp_sender.send_destination_unreachable(
+                            0,
+                            net_common::ICMPv4DstUnreachableCode::host_unreachable,
+                            pkt,
+                        );
+                    }
+                }
+                _ => {}
+            }
         });
     }
 
@@ -310,8 +378,11 @@ impl Router {
             && !device.ipv4_address().is_broadcast_address(dst_addr)
             && dst_addr != net_common::Ipv4Address([0xff; 4])
         {
+            let ip = self.clone();
             // ルーティングテーブルを参照してルーティングする
-            self.route(pkt).await;
+            tokio::spawn(async move {
+                ip.route(pkt).await;
+            });        
             return Ok(());
         }
         let proto = pkt.hdr.proto;

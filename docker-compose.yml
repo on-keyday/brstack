@@ -89,11 +89,8 @@ services:
     - NET_RAW
     environment:
       ROLE: router
-      ROUTING: 10.0.0.0/24 0.0.0.0 10.0.2.0/24 0.0.0.0 10.0.3.0/24 0.0.0.0 0.0.0.0/0
-        10.0.0.11
+      ROUTING: 10.0.2.0/24 0.0.0.0 10.0.3.0/24 0.0.0.0
     networks:
-      net_client_r1:
-        ipv4_address: 10.0.0.12
       net_r2_server:
         ipv4_address: 10.0.2.12
       net_r3_client:
@@ -105,7 +102,7 @@ services:
     - NET_RAW
     environment:
       ROLE: server
-      ROUTING: 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.12
+      ROUTING: 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.11
     networks:
       net_r2_server:
         ipv4_address: 10.0.2.13
@@ -114,6 +111,8 @@ networks:
     ipam:
       config:
       - subnet: 10.0.0.0/24
+    driver_opts:
+      com.docker.network.driver.mtu: '800'
   net_r1_r2:
     ipam:
       config:

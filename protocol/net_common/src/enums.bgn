@@ -13,7 +13,7 @@ enum ICMPv4DstUnreachableCode:
     host_unreachable
     protocol_unreachable
     port_unreachable
-    fragmentation_needed
+    fragmentation_needed_but_df_set
     source_route_failed
     network_unknown
     host_unknown
@@ -28,4 +28,4 @@ enum ICMPv4DstUnreachableCode:
 enum ICMPv4TimeExceededCode:
     :u8
     ttl_exceeded_in_transit
-    frag_reassembly_time_exceeded
+    fragment_reassembly_time_exceeded

@@ -126,7 +126,7 @@ def generate_routing_info(node_name, node, node_configs_map, network_subnets, no
         if not target_subnet_cidr:
             if not is_default_route: # デフォルトルート以外でsubnetが見つからない場合はエラー
                 print(f"Warning: Node '{node_name}' static route specifies non-existent target_network '{target_network_name}'.", file=sys.stderr)
-                continue
+            continue
             # デフォルトルートの場合は target_subnet_cidr が "0.0.0.0/0" になっている
 
 
@@ -219,14 +219,31 @@ def generate_docker_compose(config, network_subnets, node_ips, node_configs_map,
         'profiles': ['build_only']
     }
 
+    # config.get('networks', [])はネットワーク名のリストではなく、ネットワーク定義のリストであることに注意
+    network_definitions_from_config = {net['name']: net for net in config.get('networks', [])}
+
     for net_name, subnet in network_subnets.items():
-        docker_compose_data['networks'][net_name] = {
+        network_definition = {
             'ipam': {
                 'config': [
                     {'subnet': subnet}
                 ]
             }
         }
+        
+        # JSON設定からMTUを読み込む
+        config_net = network_definitions_from_config.get(net_name)
+        if config_net and 'mtu' in config_net:
+            mtu_value = config_net['mtu']
+            if isinstance(mtu_value, int) and mtu_value > 0:
+                network_definition['driver_opts'] = {
+                    'com.docker.network.driver.mtu': str(mtu_value)
+                }
+            else:
+                print(f"Warning: Invalid MTU value '{mtu_value}' for network '{net_name}'. MTU must be a positive integer. Skipping MTU setting for this network.", file=sys.stderr)
+
+
+        docker_compose_data['networks'][net_name] = network_definition
 
     for node_name, node in node_configs_map.items():
         role = node.get('role')
@@ -372,7 +389,11 @@ if __name__ == "__main__":
             config = json.load(f)
 
         # --- 共通の前処理 ---
-        network_names = [net['name'] for net in config.get('networks', [])]
+        # ネットワーク名をリストではなく、設定オブジェクトから取得
+        # MTUなどの追加情報を含むため
+        network_configs = config.get('networks', [])
+        network_names = [net['name'] for net in network_configs]
+
         num_required_subnets = len(network_names)
 
         assigned_subnet_cidrs = generate_subnets(num_required_subnets, BASE_NETWORK_ADDRESS)
@@ -431,6 +452,7 @@ if __name__ == "__main__":
 
         # --- 選択されたフォーマットに応じて出力を生成 ---
         if args.format == 'yaml':
+            # generate_docker_composeにconfig全体を渡すように変更
             docker_compose_data = generate_docker_compose(config, network_subnets, node_ips, node_configs_map, service_routing_info, client_dest_info)
             print(yaml.dump(docker_compose_data, default_flow_style=False, sort_keys=False))
         elif args.format == 'dot':

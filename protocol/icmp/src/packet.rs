@@ -2,7 +2,8 @@
 #[derive(Debug)]
 pub enum Error {
     PropertySetterError(&'static str),
-    IOError(&'static str, std::io::Error),
+    EncodeError(&'static str, std::io::Error),
+    DecodeError(&'static str, std::io::Error),
     TryFromIntError(std::num::TryFromIntError),
     ArrayLengthMismatch(&'static str,usize /*expected*/,usize /*actual*/),
     AssertError(&'static str),
@@ -13,7 +14,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::PropertySetterError(s) => write!(f, "PropertySetterError: {}", s),
-            Error::IOError(s,e) => write!(f, "IOError: {} {}", s,e),
+            Error::EncodeError(s,e) => write!(f, "EncodeError: {} {}", s,e),
+            Error::DecodeError(s,e) => write!(f, "DecodeError: {} {}", s,e),
             Error::TryFromIntError(e) => write!(f, "TryFromIntError: {}", e),
             Error::ArrayLengthMismatch(s,expected,actual) => write!(f, "ArrayLengthMismatch: {} expected:{} actual:{}", s,expected,actual),
             Error::AssertError(s) => write!(f, "AssertError: {}", s),
@@ -25,7 +27,8 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::IOError(_,e) => Some(e),
+            Error::EncodeError(_,e) => Some(e),
+            Error::DecodeError(_,e) => Some(e),
             Error::TryFromIntError(e) => Some(e),
             Error::PropertySetterError(_) => None,
             Error::ArrayLengthMismatch(_,_,_) => None,
@@ -339,7 +342,7 @@ impl <'a>ICMPv4Packet<'a> {
             if !matches!(self.field6,Variant7::Variant36(_)) {
                 return Err(Error::InvalidUnionVariant("Variant7::Variant36"));
             }
-            w.write_all(&match &self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data[0..match &self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data",e))?;
+            w.write_all(&match &self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data[0..match &self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPv4Packet::Variant7::Variant36::data",e))?;
         }
         return Ok(());
     }
@@ -370,17 +373,17 @@ impl <'a>ICMPHeader<'a> {
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
         let mut tmp559 = <[u8; 1]>::default();
         (tmp559)[0 as usize] = self.type_;
-        w.write_all(&tmp559[0..1 as usize]).map_err(|e| Error::IOError("self.type_",e))?;
+        w.write_all(&tmp559[0..1 as usize]).map_err(|e| Error::EncodeError("ICMPHeader::type_",e))?;
         let mut tmp564 = <[u8; 1]>::default();
         (tmp564)[0 as usize] = self.code;
-        w.write_all(&tmp564[0..1 as usize]).map_err(|e| Error::IOError("self.code",e))?;
+        w.write_all(&tmp564[0..1 as usize]).map_err(|e| Error::EncodeError("ICMPHeader::code",e))?;
         let mut tmp570 = <[u8; 2]>::default();
         let mut tmp572 = 0;
         while((tmp572 < 2)) {
             (tmp570)[tmp572 as usize] = (((self.checksum >> ((1 - tmp572) * 8)) & 255) as u8);
             tmp572+= 1;
         }
-        w.write_all(&tmp570[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
+        w.write_all(&tmp570[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPHeader::checksum",e))?;
         return Ok(());
     }
 }
@@ -410,8 +413,8 @@ impl <'a>ICMPTimeExceeded<'a> {
             (tmp584)[tmp585 as usize] = (((self.unused >> ((3 - tmp585) * 8)) & 255) as u8);
             tmp585+= 1;
         }
-        w.write_all(&tmp584[0..4 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&tmp584[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPTimeExceeded::unused",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPTimeExceeded::data",e))?;
         return Ok(());
     }
 }
@@ -443,15 +446,15 @@ impl <'a>ICMPEcho<'a> {
             (tmp596)[tmp597 as usize] = (((self.id >> ((1 - tmp597) * 8)) & 255) as u8);
             tmp597+= 1;
         }
-        w.write_all(&tmp596[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
+        w.write_all(&tmp596[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPEcho::id",e))?;
         let mut tmp608 = <[u8; 2]>::default();
         let mut tmp609 = 0;
         while((tmp609 < 2)) {
             (tmp608)[tmp609 as usize] = (((self.seq >> ((1 - tmp609) * 8)) & 255) as u8);
             tmp609+= 1;
         }
-        w.write_all(&tmp608[0..2 as usize]).map_err(|e| Error::IOError("self.seq",e))?;
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&tmp608[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPEcho::seq",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPEcho::data",e))?;
         return Ok(());
     }
 }
@@ -483,15 +486,15 @@ impl <'a>ICMPDestinationUnreachable<'a> {
             (tmp620)[tmp621 as usize] = (((self.unused >> ((1 - tmp621) * 8)) & 255) as u8);
             tmp621+= 1;
         }
-        w.write_all(&tmp620[0..2 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
+        w.write_all(&tmp620[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPDestinationUnreachable::unused",e))?;
         let mut tmp632 = <[u8; 2]>::default();
         let mut tmp633 = 0;
         while((tmp633 < 2)) {
             (tmp632)[tmp633 as usize] = (((self.next_hop_mtu >> ((1 - tmp633) * 8)) & 255) as u8);
             tmp633+= 1;
         }
-        w.write_all(&tmp632[0..2 as usize]).map_err(|e| Error::IOError("self.next_hop_mtu",e))?;
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&tmp632[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPDestinationUnreachable::next_hop_mtu",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPDestinationUnreachable::data",e))?;
         return Ok(());
     }
 }
@@ -523,15 +526,15 @@ impl <'a>ICMPPacketTooBig<'a> {
             (tmp644)[tmp645 as usize] = (((self.unused >> ((3 - tmp645) * 8)) & 255) as u8);
             tmp645+= 1;
         }
-        w.write_all(&tmp644[0..4 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
+        w.write_all(&tmp644[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPPacketTooBig::unused",e))?;
         let mut tmp656 = <[u8; 4]>::default();
         let mut tmp657 = 0;
         while((tmp657 < 4)) {
             (tmp656)[tmp657 as usize] = (((self.mtu >> ((3 - tmp657) * 8)) & 255) as u8);
             tmp657+= 1;
         }
-        w.write_all(&tmp656[0..4 as usize]).map_err(|e| Error::IOError("self.mtu",e))?;
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&tmp656[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPPacketTooBig::mtu",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPPacketTooBig::data",e))?;
         return Ok(());
     }
 }
@@ -553,8 +556,8 @@ impl <'a>ICMPRedirect<'a> {
         Ok(&data[0..written])
     }
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        w.write_all(&self.gateway[0..4 as usize]).map_err(|e| Error::IOError("self.gateway",e))?;
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&self.gateway[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPRedirect::gateway",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPRedirect::data",e))?;
         return Ok(());
     }
 }
@@ -592,35 +595,35 @@ impl <'a>ICMPTimestamp<'a> {
             (tmp668)[tmp669 as usize] = (((self.id >> ((1 - tmp669) * 8)) & 255) as u8);
             tmp669+= 1;
         }
-        w.write_all(&tmp668[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
+        w.write_all(&tmp668[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPTimestamp::id",e))?;
         let mut tmp680 = <[u8; 2]>::default();
         let mut tmp681 = 0;
         while((tmp681 < 2)) {
             (tmp680)[tmp681 as usize] = (((self.seq >> ((1 - tmp681) * 8)) & 255) as u8);
             tmp681+= 1;
         }
-        w.write_all(&tmp680[0..2 as usize]).map_err(|e| Error::IOError("self.seq",e))?;
+        w.write_all(&tmp680[0..2 as usize]).map_err(|e| Error::EncodeError("ICMPTimestamp::seq",e))?;
         let mut tmp692 = <[u8; 4]>::default();
         let mut tmp693 = 0;
         while((tmp693 < 4)) {
             (tmp692)[tmp693 as usize] = (((self.originate >> ((3 - tmp693) * 8)) & 255) as u8);
             tmp693+= 1;
         }
-        w.write_all(&tmp692[0..4 as usize]).map_err(|e| Error::IOError("self.originate",e))?;
+        w.write_all(&tmp692[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPTimestamp::originate",e))?;
         let mut tmp704 = <[u8; 4]>::default();
         let mut tmp705 = 0;
         while((tmp705 < 4)) {
             (tmp704)[tmp705 as usize] = (((self.receive >> ((3 - tmp705) * 8)) & 255) as u8);
             tmp705+= 1;
         }
-        w.write_all(&tmp704[0..4 as usize]).map_err(|e| Error::IOError("self.receive",e))?;
+        w.write_all(&tmp704[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPTimestamp::receive",e))?;
         let mut tmp716 = <[u8; 4]>::default();
         let mut tmp717 = 0;
         while((tmp717 < 4)) {
             (tmp716)[tmp717 as usize] = (((self.transmit >> ((3 - tmp717) * 8)) & 255) as u8);
             tmp717+= 1;
         }
-        w.write_all(&tmp716[0..4 as usize]).map_err(|e| Error::IOError("self.transmit",e))?;
+        w.write_all(&tmp716[0..4 as usize]).map_err(|e| Error::EncodeError("ICMPTimestamp::transmit",e))?;
         return Ok(());
     }
 }
@@ -648,15 +651,15 @@ impl <'a>ICMPParameterProblem<'a> {
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
         let mut tmp728 = <[u8; 1]>::default();
         (tmp728)[0 as usize] = self.pointer;
-        w.write_all(&tmp728[0..1 as usize]).map_err(|e| Error::IOError("self.pointer",e))?;
+        w.write_all(&tmp728[0..1 as usize]).map_err(|e| Error::EncodeError("ICMPParameterProblem::pointer",e))?;
         let mut tmp734 = <[u8; 3]>::default();
         let mut tmp735 = 0;
         while((tmp735 < 3)) {
             (tmp734)[tmp735 as usize] = (((self.unused >> ((2 - tmp735) * 8)) & 255) as u8);
             tmp735+= 1;
         }
-        w.write_all(&tmp734[0..3 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&tmp734[0..3 as usize]).map_err(|e| Error::EncodeError("ICMPParameterProblem::unused",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("ICMPParameterProblem::data",e))?;
         return Ok(());
     }
 }
@@ -731,7 +734,7 @@ impl <'a>ICMPv4Packet<'a> {
             if !matches!(self.field6,Variant7::Variant36(_)) {
                 self.field6 = Variant7::Variant36(Variant36::default());
             }
-            r.read_to_end(match &mut self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data",e))?;
+            r.read_to_end(match &mut self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::DecodeError("ICMPv4Packet::Variant7::Variant36::data",e))?;
         }
         return Ok(());
     }
@@ -760,13 +763,13 @@ impl <'a>ICMPHeader<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp746 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp746[0..1 as usize]).map_err(|e| Error::IOError("self.type_",e))?;
+        r.read_exact(&mut tmp746[0..1 as usize]).map_err(|e| Error::DecodeError("ICMPHeader::type_",e))?;
         self.type_ = (tmp746)[0 as usize];
         let mut tmp751 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp751[0..1 as usize]).map_err(|e| Error::IOError("self.code",e))?;
+        r.read_exact(&mut tmp751[0..1 as usize]).map_err(|e| Error::DecodeError("ICMPHeader::code",e))?;
         self.code = (tmp751)[0 as usize];
         let mut tmp756 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp756[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
+        r.read_exact(&mut tmp756[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPHeader::checksum",e))?;
         let mut tmp757 = 0;
         while((tmp757 < 2)) {
             self.checksum = (self.checksum | (((tmp756)[tmp757 as usize] as u16) << ((1 - tmp757) * 8)));
@@ -795,13 +798,13 @@ impl <'a>ICMPTimeExceeded<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp768 = <[u8; 4]>::default();
-        r.read_exact(&mut tmp768[0..4 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
+        r.read_exact(&mut tmp768[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPTimeExceeded::unused",e))?;
         let mut tmp769 = 0;
         while((tmp769 < 4)) {
             self.unused = (self.unused | (((tmp768)[tmp769 as usize] as u32) << ((3 - tmp769) * 8)));
             tmp769+= 1;
         }
-        r.read_to_end(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        r.read_to_end(self.data.to_mut()).map_err(|e| Error::DecodeError("ICMPTimeExceeded::data",e))?;
         return Ok(());
     }
 }
@@ -827,20 +830,20 @@ impl <'a>ICMPEcho<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp780 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp780[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
+        r.read_exact(&mut tmp780[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPEcho::id",e))?;
         let mut tmp781 = 0;
         while((tmp781 < 2)) {
             self.id = (self.id | (((tmp780)[tmp781 as usize] as u16) << ((1 - tmp781) * 8)));
             tmp781+= 1;
         }
         let mut tmp792 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp792[0..2 as usize]).map_err(|e| Error::IOError("self.seq",e))?;
+        r.read_exact(&mut tmp792[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPEcho::seq",e))?;
         let mut tmp793 = 0;
         while((tmp793 < 2)) {
             self.seq = (self.seq | (((tmp792)[tmp793 as usize] as u16) << ((1 - tmp793) * 8)));
             tmp793+= 1;
         }
-        r.read_to_end(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        r.read_to_end(self.data.to_mut()).map_err(|e| Error::DecodeError("ICMPEcho::data",e))?;
         return Ok(());
     }
 }
@@ -866,20 +869,20 @@ impl <'a>ICMPDestinationUnreachable<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp804 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp804[0..2 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
+        r.read_exact(&mut tmp804[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPDestinationUnreachable::unused",e))?;
         let mut tmp805 = 0;
         while((tmp805 < 2)) {
             self.unused = (self.unused | (((tmp804)[tmp805 as usize] as u16) << ((1 - tmp805) * 8)));
             tmp805+= 1;
         }
         let mut tmp816 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp816[0..2 as usize]).map_err(|e| Error::IOError("self.next_hop_mtu",e))?;
+        r.read_exact(&mut tmp816[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPDestinationUnreachable::next_hop_mtu",e))?;
         let mut tmp817 = 0;
         while((tmp817 < 2)) {
             self.next_hop_mtu = (self.next_hop_mtu | (((tmp816)[tmp817 as usize] as u16) << ((1 - tmp817) * 8)));
             tmp817+= 1;
         }
-        r.read_to_end(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        r.read_to_end(self.data.to_mut()).map_err(|e| Error::DecodeError("ICMPDestinationUnreachable::data",e))?;
         return Ok(());
     }
 }
@@ -905,20 +908,20 @@ impl <'a>ICMPPacketTooBig<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp828 = <[u8; 4]>::default();
-        r.read_exact(&mut tmp828[0..4 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
+        r.read_exact(&mut tmp828[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPPacketTooBig::unused",e))?;
         let mut tmp829 = 0;
         while((tmp829 < 4)) {
             self.unused = (self.unused | (((tmp828)[tmp829 as usize] as u32) << ((3 - tmp829) * 8)));
             tmp829+= 1;
         }
         let mut tmp840 = <[u8; 4]>::default();
-        r.read_exact(&mut tmp840[0..4 as usize]).map_err(|e| Error::IOError("self.mtu",e))?;
+        r.read_exact(&mut tmp840[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPPacketTooBig::mtu",e))?;
         let mut tmp841 = 0;
         while((tmp841 < 4)) {
             self.mtu = (self.mtu | (((tmp840)[tmp841 as usize] as u32) << ((3 - tmp841) * 8)));
             tmp841+= 1;
         }
-        r.read_to_end(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        r.read_to_end(self.data.to_mut()).map_err(|e| Error::DecodeError("ICMPPacketTooBig::data",e))?;
         return Ok(());
     }
 }
@@ -939,8 +942,8 @@ impl <'a>ICMPRedirect<'a> {
         Ok(result)
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        r.read_exact(&mut self.gateway[0..4 as usize]).map_err(|e| Error::IOError("self.gateway",e))?;
-        r.read_to_end(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        r.read_exact(&mut self.gateway[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPRedirect::gateway",e))?;
+        r.read_to_end(self.data.to_mut()).map_err(|e| Error::DecodeError("ICMPRedirect::data",e))?;
         return Ok(());
     }
 }
@@ -972,35 +975,35 @@ impl <'a>ICMPTimestamp<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp852 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp852[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
+        r.read_exact(&mut tmp852[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPTimestamp::id",e))?;
         let mut tmp853 = 0;
         while((tmp853 < 2)) {
             self.id = (self.id | (((tmp852)[tmp853 as usize] as u16) << ((1 - tmp853) * 8)));
             tmp853+= 1;
         }
         let mut tmp864 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp864[0..2 as usize]).map_err(|e| Error::IOError("self.seq",e))?;
+        r.read_exact(&mut tmp864[0..2 as usize]).map_err(|e| Error::DecodeError("ICMPTimestamp::seq",e))?;
         let mut tmp865 = 0;
         while((tmp865 < 2)) {
             self.seq = (self.seq | (((tmp864)[tmp865 as usize] as u16) << ((1 - tmp865) * 8)));
             tmp865+= 1;
         }
         let mut tmp876 = <[u8; 4]>::default();
-        r.read_exact(&mut tmp876[0..4 as usize]).map_err(|e| Error::IOError("self.originate",e))?;
+        r.read_exact(&mut tmp876[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPTimestamp::originate",e))?;
         let mut tmp877 = 0;
         while((tmp877 < 4)) {
             self.originate = (self.originate | (((tmp876)[tmp877 as usize] as u32) << ((3 - tmp877) * 8)));
             tmp877+= 1;
         }
         let mut tmp888 = <[u8; 4]>::default();
-        r.read_exact(&mut tmp888[0..4 as usize]).map_err(|e| Error::IOError("self.receive",e))?;
+        r.read_exact(&mut tmp888[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPTimestamp::receive",e))?;
         let mut tmp889 = 0;
         while((tmp889 < 4)) {
             self.receive = (self.receive | (((tmp888)[tmp889 as usize] as u32) << ((3 - tmp889) * 8)));
             tmp889+= 1;
         }
         let mut tmp900 = <[u8; 4]>::default();
-        r.read_exact(&mut tmp900[0..4 as usize]).map_err(|e| Error::IOError("self.transmit",e))?;
+        r.read_exact(&mut tmp900[0..4 as usize]).map_err(|e| Error::DecodeError("ICMPTimestamp::transmit",e))?;
         let mut tmp901 = 0;
         while((tmp901 < 4)) {
             self.transmit = (self.transmit | (((tmp900)[tmp901 as usize] as u32) << ((3 - tmp901) * 8)));
@@ -1031,16 +1034,16 @@ impl <'a>ICMPParameterProblem<'a> {
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
         let mut tmp912 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp912[0..1 as usize]).map_err(|e| Error::IOError("self.pointer",e))?;
+        r.read_exact(&mut tmp912[0..1 as usize]).map_err(|e| Error::DecodeError("ICMPParameterProblem::pointer",e))?;
         self.pointer = (tmp912)[0 as usize];
         let mut tmp917 = <[u8; 3]>::default();
-        r.read_exact(&mut tmp917[0..3 as usize]).map_err(|e| Error::IOError("self.unused",e))?;
+        r.read_exact(&mut tmp917[0..3 as usize]).map_err(|e| Error::DecodeError("ICMPParameterProblem::unused",e))?;
         let mut tmp918 = 0;
         while((tmp918 < 3)) {
             self.unused = (self.unused | (((tmp917)[tmp918 as usize] as u32) << ((2 - tmp918) * 8)));
             tmp918+= 1;
         }
-        r.read_to_end(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        r.read_to_end(self.data.to_mut()).map_err(|e| Error::DecodeError("ICMPParameterProblem::data",e))?;
         return Ok(());
     }
 }
@@ -1067,7 +1070,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_data(&mut self, param450: std::borrow::Cow<'a,[u8]>) -> std::result::Result<(), Error> {
         let mut tmp47 = ICMPv4Type::from(self.header.type_);
         if ((tmp47 == ICMPv4Type::echo) || ((tmp47 == ICMPv4Type::echo_reply) || ((tmp47 == ICMPv4Type::time_exceeded) || ((tmp47 == ICMPv4Type::dst_unreachable) || ((tmp47 == ICMPv4Type::redirect) || ((tmp47 == ICMPv4Type::parameter_problem) || ((tmp47 == ICMPv4Type::timestamp) || (tmp47 == ICMPv4Type::timestamp_reply)))))))) {
-            return Err(Error::PropertySetterError("data"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::data"));
         }
         if true {
             if !matches!(self.field6,Variant7::Variant36(_)) {
@@ -1076,7 +1079,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant36(x) => x, _ => unreachable!() }.data = param450;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("data"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::data"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1102,7 +1105,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_destination_unreachable(&mut self, param467: ICMPDestinationUnreachable<'a>) -> std::result::Result<(), Error> {
         let mut tmp94 = ICMPv4Type::from(self.header.type_);
         if ((tmp94 == ICMPv4Type::echo) || ((tmp94 == ICMPv4Type::echo_reply) || (tmp94 == ICMPv4Type::time_exceeded))) {
-            return Err(Error::PropertySetterError("destination_unreachable"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::destination_unreachable"));
         }
         if (tmp94 == ICMPv4Type::dst_unreachable) {
             if !matches!(self.field6,Variant7::Variant18(_)) {
@@ -1111,7 +1114,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant18(x) => x, _ => unreachable!() }.destination_unreachable = param467;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("destination_unreachable"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::destination_unreachable"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1140,7 +1143,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant8(x) => x, _ => unreachable!() }.echo = param475;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("echo"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::echo"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1166,7 +1169,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_echo_reply(&mut self, param481: ICMPEcho<'a>) -> std::result::Result<(), Error> {
         let mut tmp124 = ICMPv4Type::from(self.header.type_);
         if (tmp124 == ICMPv4Type::echo) {
-            return Err(Error::PropertySetterError("echo_reply"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::echo_reply"));
         }
         if (tmp124 == ICMPv4Type::echo_reply) {
             if !matches!(self.field6,Variant7::Variant12(_)) {
@@ -1175,7 +1178,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant12(x) => x, _ => unreachable!() }.echo_reply = param481;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("echo_reply"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::echo_reply"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1201,7 +1204,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_parameter_problem(&mut self, param492: ICMPParameterProblem<'a>) -> std::result::Result<(), Error> {
         let mut tmp137 = ICMPv4Type::from(self.header.type_);
         if ((tmp137 == ICMPv4Type::echo) || ((tmp137 == ICMPv4Type::echo_reply) || ((tmp137 == ICMPv4Type::time_exceeded) || ((tmp137 == ICMPv4Type::dst_unreachable) || (tmp137 == ICMPv4Type::redirect))))) {
-            return Err(Error::PropertySetterError("parameter_problem"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::parameter_problem"));
         }
         if (tmp137 == ICMPv4Type::parameter_problem) {
             if !matches!(self.field6,Variant7::Variant26(_)) {
@@ -1210,7 +1213,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant26(x) => x, _ => unreachable!() }.parameter_problem = param492;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("parameter_problem"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::parameter_problem"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1236,7 +1239,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_redirect(&mut self, param506: ICMPRedirect<'a>) -> std::result::Result<(), Error> {
         let mut tmp166 = ICMPv4Type::from(self.header.type_);
         if ((tmp166 == ICMPv4Type::echo) || ((tmp166 == ICMPv4Type::echo_reply) || ((tmp166 == ICMPv4Type::time_exceeded) || (tmp166 == ICMPv4Type::dst_unreachable)))) {
-            return Err(Error::PropertySetterError("redirect"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::redirect"));
         }
         if (tmp166 == ICMPv4Type::redirect) {
             if !matches!(self.field6,Variant7::Variant22(_)) {
@@ -1245,7 +1248,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant22(x) => x, _ => unreachable!() }.redirect = param506;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("redirect"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::redirect"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1271,7 +1274,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_time_exceeded(&mut self, param517: ICMPTimeExceeded<'a>) -> std::result::Result<(), Error> {
         let mut tmp191 = ICMPv4Type::from(self.header.type_);
         if ((tmp191 == ICMPv4Type::echo) || (tmp191 == ICMPv4Type::echo_reply)) {
-            return Err(Error::PropertySetterError("time_exceeded"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::time_exceeded"));
         }
         if (tmp191 == ICMPv4Type::time_exceeded) {
             if !matches!(self.field6,Variant7::Variant14(_)) {
@@ -1280,7 +1283,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant14(x) => x, _ => unreachable!() }.time_exceeded = param517;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("time_exceeded"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::time_exceeded"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1306,7 +1309,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_timestamp(&mut self, param530: ICMPTimestamp<'a>) -> std::result::Result<(), Error> {
         let mut tmp208 = ICMPv4Type::from(self.header.type_);
         if ((tmp208 == ICMPv4Type::echo) || ((tmp208 == ICMPv4Type::echo_reply) || ((tmp208 == ICMPv4Type::time_exceeded) || ((tmp208 == ICMPv4Type::dst_unreachable) || ((tmp208 == ICMPv4Type::redirect) || (tmp208 == ICMPv4Type::parameter_problem)))))) {
-            return Err(Error::PropertySetterError("timestamp"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::timestamp"));
         }
         if (tmp208 == ICMPv4Type::timestamp) {
             if !matches!(self.field6,Variant7::Variant30(_)) {
@@ -1315,7 +1318,7 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant30(x) => x, _ => unreachable!() }.timestamp = param530;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("timestamp"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::timestamp"));
     }
 }
 /* Unimplemented op: RETURN_TYPE */
@@ -1341,7 +1344,7 @@ impl <'a>ICMPv4Packet<'a> {
     pub fn set_timestamp_reply(&mut self, param547: ICMPTimestamp<'a>) -> std::result::Result<(), Error> {
         let mut tmp241 = ICMPv4Type::from(self.header.type_);
         if ((tmp241 == ICMPv4Type::echo) || ((tmp241 == ICMPv4Type::echo_reply) || ((tmp241 == ICMPv4Type::time_exceeded) || ((tmp241 == ICMPv4Type::dst_unreachable) || ((tmp241 == ICMPv4Type::redirect) || ((tmp241 == ICMPv4Type::parameter_problem) || (tmp241 == ICMPv4Type::timestamp))))))) {
-            return Err(Error::PropertySetterError("timestamp_reply"));
+            return Err(Error::PropertySetterError("ICMPv4Packet::timestamp_reply"));
         }
         if (tmp241 == ICMPv4Type::timestamp_reply) {
             if !matches!(self.field6,Variant7::Variant34(_)) {
@@ -1350,6 +1353,6 @@ impl <'a>ICMPv4Packet<'a> {
             match &mut self.field6 {  Variant7::Variant34(x) => x, _ => unreachable!() }.timestamp_reply = param547;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("timestamp_reply"));
+        return Err(Error::PropertySetterError("ICMPv4Packet::timestamp_reply"));
     }
 }

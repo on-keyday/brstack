@@ -91,7 +91,7 @@ pub enum ICMPv4DstUnreachableCode {
     host_unreachable = 1,
     protocol_unreachable = 2,
     port_unreachable = 3,
-    fragmentation_needed = 4,
+    fragmentation_needed_but_df_set = 4,
     source_route_failed = 5,
     network_unknown = 6,
     host_unknown = 7,
@@ -110,7 +110,7 @@ impl std::fmt::Display for ICMPv4DstUnreachableCode {
             1 => write!(f, "{}", "host_unreachable"),
             2 => write!(f, "{}", "protocol_unreachable"),
             3 => write!(f, "{}", "port_unreachable"),
-            4 => write!(f, "{}", "fragmentation_needed"),
+            4 => write!(f, "{}", "fragmentation_needed_but_df_set"),
             5 => write!(f, "{}", "source_route_failed"),
             6 => write!(f, "{}", "network_unknown"),
             7 => write!(f, "{}", "host_unknown"),
@@ -162,13 +162,13 @@ impl std::convert::From<ICMPv4DstUnreachableCode> for u8 {
 pub enum ICMPv4TimeExceededCode {
     #[default]
     ttl_exceeded_in_transit = 0,
-    frag_reassembly_time_exceeded = 1,
+    fragment_reassembly_time_exceeded = 1,
 }
 impl std::fmt::Display for ICMPv4TimeExceededCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self as u8 {
             0 => write!(f, "{}", "ttl_exceeded_in_transit"),
-            1 => write!(f, "{}", "frag_reassembly_time_exceeded"),
+            1 => write!(f, "{}", "fragment_reassembly_time_exceeded"),
             _ => write!(f, "ICMPv4TimeExceededCode({})",*self as u8),
         }
     }

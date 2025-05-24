@@ -95,9 +95,6 @@
             "role": "router",
             "connections": [
                 {
-                    "network": "net_client_r1"
-                },
-                {
                     "network": "net_r2_server"
                 },
                 {
@@ -105,10 +102,6 @@
                 }
             ],
             "static_routes": [
-                {
-                    "target_network": "default",
-                    "next_hop_node": "router1"
-                }
             ]
         },
         {
@@ -120,6 +113,10 @@
                 }
             ],
             "static_routes": [
+                {
+                    "target_network": "default",
+                    "next_hop_node": "router2"
+                }
             ]
         }
     ]
