@@ -2,7 +2,8 @@
 #[derive(Debug)]
 pub enum Error {
     PropertySetterError(&'static str),
-    IOError(&'static str, std::io::Error),
+    EncodeError(&'static str, std::io::Error),
+    DecodeError(&'static str, std::io::Error),
     TryFromIntError(std::num::TryFromIntError),
     ArrayLengthMismatch(&'static str,usize /*expected*/,usize /*actual*/),
     AssertError(&'static str),
@@ -13,7 +14,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::PropertySetterError(s) => write!(f, "PropertySetterError: {}", s),
-            Error::IOError(s,e) => write!(f, "IOError: {} {}", s,e),
+            Error::EncodeError(s,e) => write!(f, "EncodeError: {} {}", s,e),
+            Error::DecodeError(s,e) => write!(f, "DecodeError: {} {}", s,e),
             Error::TryFromIntError(e) => write!(f, "TryFromIntError: {}", e),
             Error::ArrayLengthMismatch(s,expected,actual) => write!(f, "ArrayLengthMismatch: {} expected:{} actual:{}", s,expected,actual),
             Error::AssertError(s) => write!(f, "AssertError: {}", s),
@@ -25,7 +27,8 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::IOError(_,e) => Some(e),
+            Error::EncodeError(_,e) => Some(e),
+            Error::DecodeError(_,e) => Some(e),
             Error::TryFromIntError(e) => Some(e),
             Error::PropertySetterError(_) => None,
             Error::ArrayLengthMismatch(_,_,_) => None,
@@ -135,15 +138,15 @@ impl <'a>EthernetFrame<'a> {
         Ok(&data[0..written])
     }
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        w.write_all(&self.dst_mac[0..6 as usize]).map_err(|e| Error::IOError("self.dst_mac",e))?;
-        w.write_all(&self.src_mac[0..6 as usize]).map_err(|e| Error::IOError("self.src_mac",e))?;
+        w.write_all(&self.dst_mac[0..6 as usize]).map_err(|e| Error::EncodeError("EthernetFrame::dst_mac",e))?;
+        w.write_all(&self.src_mac[0..6 as usize]).map_err(|e| Error::EncodeError("EthernetFrame::src_mac",e))?;
         let mut tmp75 = <[u8; 2]>::default();
         let mut tmp79 = 0;
         while((tmp79 < 2)) {
             (tmp75)[tmp79 as usize] = (((u16::from(self.ether_type) >> ((1 - tmp79) * 8)) & 255) as u8);
             tmp79+= 1;
         }
-        w.write_all(&tmp75[0..2 as usize]).map_err(|e| Error::IOError("self.ether_type",e))?;
+        w.write_all(&tmp75[0..2 as usize]).map_err(|e| Error::EncodeError("EthernetFrame::ether_type",e))?;
         let mut len = u16::from(self.ether_type);
         if(!((len <= 1500) || (len >= 1536))) { 
         return Err(Error::AssertError("((len <= 1500) || (len >= 1536))"));
@@ -152,16 +155,16 @@ impl <'a>EthernetFrame<'a> {
             if !matches!(self.field18,Variant19::Variant20(_)) {
                 return Err(Error::InvalidUnionVariant("Variant19::Variant20"));
             }
-            w.write_all(&match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data[0..match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data",e))?;
+            w.write_all(&match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data[0..match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::EncodeError("EthernetFrame::Variant19::Variant20::data",e))?;
         } else {
             if !matches!(self.field18,Variant19::Variant23(_)) {
                 return Err(Error::InvalidUnionVariant("Variant19::Variant23"));
             }
             let mut tmp48 = len;
             if match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len() != tmp48 as usize {
-            return Err(Error::ArrayLengthMismatch("encode match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data", tmp48 as usize, match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len()));
+            return Err(Error::ArrayLengthMismatch("encode EthernetFrame::Variant19::Variant23::data", tmp48 as usize, match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len()));
             }
-            w.write_all(&match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data[0..match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data",e))?;
+            w.write_all(&match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data[0..match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.len() as usize]).map_err(|e| Error::EncodeError("EthernetFrame::Variant19::Variant23::data",e))?;
         }
         return Ok(());
     }
@@ -186,11 +189,11 @@ impl <'a>EthernetFrame<'a> {
         Ok(result)
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        r.read_exact(&mut self.dst_mac[0..6 as usize]).map_err(|e| Error::IOError("self.dst_mac",e))?;
-        r.read_exact(&mut self.src_mac[0..6 as usize]).map_err(|e| Error::IOError("self.src_mac",e))?;
+        r.read_exact(&mut self.dst_mac[0..6 as usize]).map_err(|e| Error::DecodeError("EthernetFrame::dst_mac",e))?;
+        r.read_exact(&mut self.src_mac[0..6 as usize]).map_err(|e| Error::DecodeError("EthernetFrame::src_mac",e))?;
         let mut tmp51 = <u16>::default();
         let mut tmp94 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp94[0..2 as usize]).map_err(|e| Error::IOError("self.ether_type",e))?;
+        r.read_exact(&mut tmp94[0..2 as usize]).map_err(|e| Error::DecodeError("EthernetFrame::ether_type",e))?;
         let mut tmp95 = 0;
         while((tmp95 < 2)) {
             tmp51 = (tmp51 | (((tmp94)[tmp95 as usize] as u16) << ((1 - tmp95) * 8)));
@@ -205,14 +208,14 @@ impl <'a>EthernetFrame<'a> {
             if !matches!(self.field18,Variant19::Variant20(_)) {
                 self.field18 = Variant19::Variant20(Variant20::default());
             }
-            r.read_to_end(match &mut self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data",e))?;
+            r.read_to_end(match &mut self.field18 {  Variant19::Variant20(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::DecodeError("EthernetFrame::Variant19::Variant20::data",e))?;
         } else {
             if !matches!(self.field18,Variant19::Variant23(_)) {
                 self.field18 = Variant19::Variant23(Variant23::default());
             }
             let mut tmp60 = len;
             match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.to_mut().resize(tmp60 as usize,0);
-            r.read_exact(match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::IOError("match &self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data",e))?;
+            r.read_exact(match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data.to_mut()).map_err(|e| Error::DecodeError("EthernetFrame::Variant19::Variant23::data",e))?;
         }
         return Ok(());
     }
@@ -256,6 +259,6 @@ impl <'a>EthernetFrame<'a> {
             match &mut self.field18 {  Variant19::Variant23(x) => x, _ => unreachable!() }.data = param67;
             return Ok(());
         }
-        return Err(Error::PropertySetterError("data"));
+        return Err(Error::PropertySetterError("EthernetFrame::data"));
     }
 }

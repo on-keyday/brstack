@@ -5,6 +5,7 @@ pub mod frame;
 pub struct NetworkInterfaceState {
     name: String,
     index: u32,
+    mtu: u32,
     mac_address: net_common::MacAddress,
     ipv4_address: net_common::Ipv4Prefix,
     socket :tokio::io::unix::AsyncFd<socket2::Socket>,
@@ -71,13 +72,12 @@ impl NetworkInterface {
         if if_index == 0 {
             return Err(Error::Socket(tokio::io::Error::from_raw_os_error(libc::ENODEV)));
         }
-        // ネットワークインターフェースからMACアドレスを取得
-        let mac_address = unsafe {
+        let mut req = { 
             let mut name_buf = [0i8;libc::IFNAMSIZ];
             name.as_bytes().iter().enumerate().for_each(|(i, &b)| {
                 name_buf[i] = b as i8;
             });
-            let mut req = libc::ifreq {
+            libc::ifreq {
                 ifr_name:name_buf,
                 ifr_ifru: libc::__c_anonymous_ifr_ifru {
                     ifru_hwaddr: libc::sockaddr {
@@ -85,7 +85,10 @@ impl NetworkInterface {
                         sa_data: [0; 14],
                     },
                 }
-            };
+            }
+        };
+        // ネットワークインターフェースからMACアドレスを取得
+        let mac_address = unsafe {
             let ret =  libc::ioctl(socket.as_raw_fd(),libc::SIOCGIFHWADDR,&mut req as *mut libc::ifreq);
             if ret < 0 {
                 return Err(Error::Socket(tokio::io::Error::last_os_error()));
@@ -94,6 +97,15 @@ impl NetworkInterface {
             mac.copy_from_slice(std::mem::transmute(&req.ifr_ifru.ifru_hwaddr.sa_data[0..6]));
             net_common::MacAddress(mac)
         };
+        // ネットワークインターフェイスからMTUを取得
+        let mtu = unsafe {
+            let ret = libc::ioctl(socket.as_raw_fd(), libc::SIOCGIFMTU, &mut req as *mut libc::ifreq);
+            if ret < 0 {
+                return Err(Error::Socket(tokio::io::Error::last_os_error()));
+            }
+            req.ifr_ifru.ifru_mtu as u32
+        };
+
         let mut storage : libc::sockaddr_storage  = unsafe { std::mem::zeroed() };
         // C言語の (struct sockaddr_ll*)&storage 相当の処理
         let sockaddr = unsafe { &mut *((&mut storage) as *const libc::sockaddr_storage as *mut libc::sockaddr_ll) };
@@ -118,6 +130,7 @@ impl NetworkInterface {
                 socket,
                 write_mutex: tokio::sync::Mutex::new(()),
                 read_mutex: tokio::sync::Mutex::new(()),
+                mtu,
             }),
         })
     }
@@ -129,6 +142,9 @@ impl NetworkInterface {
         &self.state.ipv4_address
     }
     
+    pub fn mtu(&self) -> u32 {
+        self.state.mtu
+    }
     
     pub fn name(&self) -> &str {
         &self.state.name

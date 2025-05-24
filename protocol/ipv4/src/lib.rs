@@ -108,11 +108,10 @@ pub struct Router {
 }
 
 #[derive(Debug)]
-enum ProtocolError {
+pub enum ProtocolError {
     NoRouteToHost,
     ChecksumMismatch,
     PacketTooLarge(usize,usize),
-    UnsupportedProtocol,
 }
 
 #[derive(Debug)]
@@ -146,7 +145,6 @@ impl std::fmt::Display for ProtocolError {
             ProtocolError::NoRouteToHost => write!(f, "No route to host"),
             ProtocolError::ChecksumMismatch => write!(f, "Checksum mismatch"),
             ProtocolError::PacketTooLarge(size,limit) => write!(f, "Packet too large: {} bytes (limit: {} bytes)", size, limit),
-            ProtocolError::UnsupportedProtocol => write!(f, "Unsupported protocol"),
         }
     }
 }
@@ -259,12 +257,32 @@ impl Router {
         pkt.hdr.encode_to_fixed(&mut buffer)?;
         pkt.hdr.checksum = packet::checkSum(std::borrow::Cow::Borrowed(&buffer));
         pkt.data = std::borrow::Cow::Borrowed(data);
+        if device.mtu() < pkt.hdr.len as u32 { // フラグメンテーションをサポートしないので...
+            return Err(Error::Protocol(ProtocolError::PacketTooLarge(
+                pkt.hdr.len as usize,
+                device.mtu() as usize,
+            )));
+        }
+        assert!(pkt.hdr.len as usize <= 2048); // 今のところは!
         let mut buffer = [0u8; 2048];
         let data = pkt.encode_to_fixed(&mut buffer)?;
         device
             .send(ethernet::frame::EtherType::IPv4, dst_mac, data)
-            .await?;
+            .await?;    
         Ok(())
+    }
+
+    pub fn send_port_unreachable(
+        &self,
+        original_packet: packet::IPv4Packet<'_>,
+    )  {
+        if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
+            icmp_sender.send_destination_unreachable(
+                0,
+                net_common::ICMPv4DstUnreachableCode::port_unreachable,
+                original_packet,
+            );
+        }
     }
 
     async fn send_routed(
@@ -350,7 +368,16 @@ impl Router {
                             pkt,
                         );
                     }
-                }                
+                }       
+                Error::Protocol(ProtocolError::PacketTooLarge(_,limit)) => {
+                    if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
+                        icmp_sender.send_destination_unreachable(
+                            limit as u16,
+                            net_common::ICMPv4DstUnreachableCode::fragmentation_needed_but_df_set,
+                            pkt,
+                        );
+                    }
+                }
                 Error::Arp(_) => {
                     if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
                         icmp_sender.send_destination_unreachable(
@@ -393,6 +420,13 @@ impl Router {
                 .map_err(|e| Error::UpperLayerError(e))?;
         } else {
             log::warn!("No protocol handler for protocol number {}", proto);
+            if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {
+                icmp_sender.send_destination_unreachable(
+                    0,
+                    net_common::ICMPv4DstUnreachableCode::protocol_unreachable,
+                    pkt,
+                );
+            }
         }
         Ok(())
     }
