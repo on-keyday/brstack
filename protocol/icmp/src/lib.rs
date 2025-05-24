@@ -71,6 +71,71 @@ impl ICMPService {
         packet.set_time_exceeded(time_exceeded)?;
         self.send(dst_addr, packet).await
     }
+
+    
+    fn can_send_error(
+        &self,
+        original_packet: &ipv4::packet::IPv4Packet<'_>,
+    ) -> bool {
+        if original_packet.hdr.proto == ipv4::packet::ProtocolNumber::ICMP {
+            // try decode ICMP header
+            let icmp_header = match packet::ICMPHeader::decode_slice(&original_packet.data) {
+                Ok((header, _)) => header,
+                Err(_) => {
+                    log::warn!("Failed to decode ICMP header from original packet: {:?}", original_packet);
+                    return false;
+                }
+            };
+            // https://www.rfc-editor.org/rfc/rfc1122#page-38
+            /*
+                     ICMP messages are grouped into two classes.
+
+             *
+              ICMP error messages:
+
+               Destination Unreachable   (see Section 3.2.2.1)
+               Redirect                  (see Section 3.2.2.2)
+               Source Quench             (see Section 3.2.2.3)
+               Time Exceeded             (see Section 3.2.2.4)
+               Parameter Problem         (see Section 3.2.2.5)
+
+            An ICMP error message MUST NOT be sent as the result of receiving:
+
+         *    an ICMP error message, or
+
+         *    a datagram destined to an IP broadcast or IP multicast
+              address, or
+
+         *    a datagram sent as a link-layer broadcast, or
+
+         *    a non-initial fragment, or
+
+         *    a datagram whose source address does not define a single
+              host -- e.g., a zero address, a loopback address, a
+              broadcast address, a multicast address, or a Class E
+              address.
+
+             */
+            let is_error = match icmp_header.type_.into() {
+                packet::ICMPv4Type::dst_unreachable => true, 
+                packet::ICMPv4Type::redirect => true,
+                packet::ICMPv4Type::src_quench => true,
+                packet::ICMPv4Type::time_exceeded => true,
+                packet::ICMPv4Type::parameter_problem => true,
+                _ => false,
+            };
+            if is_error {
+                log::warn!("cannot send ICMP error message in response to ICMP error message: {:?}", icmp_header);
+                return false;
+            }
+        }
+        let src_addr = net_common::Ipv4Address(original_packet.hdr.src_addr);
+        if src_addr.is_broadcast() || src_addr.is_multicast()|| src_addr.is_unspecified() || src_addr.is_loopback() {
+            log::warn!("cannot send ICMP error message to broadcast, multicast, unspecified or loopback address: {}", src_addr);
+            return false;
+        }
+        true
+    }
 }
 
 #[derive(Debug)]
@@ -145,8 +210,8 @@ impl ipv4::IPv4Receiver for ICMPService {
         }
         Ok(())
     }
-}
 
+}
 
 impl ipv4::ICMPSender for ICMPService {
     fn send_destination_unreachable(
@@ -155,6 +220,9 @@ impl ipv4::ICMPSender for ICMPService {
             code : net_common::ICMPv4DstUnreachableCode,
             original_packet: ipv4::packet::IPv4Packet<'_>,
         ) {
+        if !self.can_send_error(&original_packet) {
+            return;
+        }
         let mut buffer = [0u8; 2048];
         let len = original_packet.encode_to_fixed(&mut buffer).unwrap().len();
         let icmp =self.clone();
@@ -172,6 +240,9 @@ impl ipv4::ICMPSender for ICMPService {
             code :net_common::ICMPv4TimeExceededCode,
             original_packet: ipv4::packet::IPv4Packet<'_>,
         ) {
+        if !self.can_send_error(&original_packet) {
+            return;
+        }
         let mut buffer = [0u8; 2048];
         let len = original_packet.encode_to_fixed(&mut buffer).unwrap().len();
         let icmp =self.clone();

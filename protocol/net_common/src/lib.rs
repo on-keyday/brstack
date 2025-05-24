@@ -26,6 +26,24 @@ impl Ipv4Address {
     }
 }
 
+impl Ipv4Address {
+    pub fn is_broadcast(&self) -> bool {
+        self.0 == [255, 255, 255, 255]
+    }
+
+    pub fn is_multicast(&self) -> bool {
+        self.0[0] & 0xF0 == 0xE0
+    }
+
+    pub fn is_unspecified(&self) -> bool {
+        self.0 == [0, 0, 0, 0]
+    }
+
+    pub fn is_loopback(&self) -> bool {
+        self.0[0] == 127
+    }
+}
+
 impl std::hash::Hash for Ipv4Address {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write(&self.0);
