@@ -1,0 +1,10 @@
+format UDPHeader:
+    src_port :u16
+    dst_port :u16
+    length  :u16
+    checksum :u16
+
+format UDPDatagram:
+    header :UDPHeader
+    header.length >= 8
+    data :[header.length-8]u8

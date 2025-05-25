@@ -18,6 +18,17 @@ impl std::fmt::Display for MacAddress {
 #[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub struct Ipv4Address(pub [u8; 4]);
 
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
+pub struct AddrPort {
+    pub address: Ipv4Address,
+    pub port: u16,
+}
+impl AddrPort {
+    pub fn new(address: Ipv4Address, port: u16) -> Self {
+        Self { address, port }
+    }
+}
+
 pub const UNSPECIFIED : Ipv4Address = Ipv4Address([0, 0, 0, 0]);
 
 impl Ipv4Address {

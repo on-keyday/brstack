@@ -17,3 +17,4 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+net_common = { path = "../net_common" }
