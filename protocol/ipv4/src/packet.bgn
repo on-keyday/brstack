@@ -37,3 +37,38 @@ format IPv4PseudoHeader:
     zero :u8
     protocol :ProtocolNumber
     length :u16
+
+
+state CheckSum:
+    sum :u32
+    has_prev :bool
+    prev :u8
+
+fn checkSumUpdate(s :CheckSum,data :[]u8) -> CheckSum:
+    p := s
+    sum := p.sum
+    if data.length == 0:
+        return p
+    if p.has_prev:
+        sum += u32(p.prev) << 8 | u32(data[0])
+        for i in (data.length - 1) / 2:
+            sum += u32(data[(i*2)+1]) << 8 | u32(data[(i*2)+2])
+        if (data.length - 1) % 2 != 0:
+            p.prev = data[data.length-1]
+            p.has_prev = true
+    else:
+        for i in data.length / 2:
+            sum += u32(data[i*2]) << 8 | u32(data[(i*2)+1])
+        if data.length % 2 != 0:
+            p.prev = data[data.length-1]
+            p.has_prev = true
+    return p
+
+fn checkSumFinish(s :CheckSum) -> u16:
+    p := s
+    sum := p.sum
+    if p.has_prev:
+        sum += u32(p.prev) << 8
+    for sum > 0xffff:
+        sum = (sum & 0xffff) + (sum >> 16)
+    return u16(!sum) # bit not(Rust方式)

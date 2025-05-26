@@ -1,6 +1,7 @@
 
 
 
+
 pub mod datagram;
 
 struct PortMapper {
@@ -112,6 +113,13 @@ impl UDPSocket {
             None => Err(Error::Protocol("Receiver closed".to_string())),
         }
     }
+
+    pub async fn receive(&mut self) -> Result<Vec<u8>, Error> {
+        if self.four_tuple.dst.address.is_unspecified() {
+            log::warn!("receive() called on a socket with unspecified destination address. This is likely a server socket that should use receive_from() instead.");
+        }
+       self.receive_from().await.map(|(data, _addr)| data)
+    }
 }
 
 impl Drop for UDPSocket {
@@ -171,6 +179,27 @@ impl std::error::Error for Error {
 pub struct UDPHub {
     state: std::sync::Arc<UDPState>,
 }
+
+
+fn udp_checksum(udp_datagram: &[u8], src_addr: net_common::Ipv4Address, dst_addr: net_common::Ipv4Address) -> u16 {
+    let pseudo_header = ipv4::packet::IPv4PseudoHeader {
+        srcAddr: src_addr.0,
+        dstAddr: dst_addr.0,
+        zero: 0,
+        protocol: ipv4::packet::ProtocolNumber::UDP,
+        length: udp_datagram.len() as u16,
+        ..Default::default()
+    };
+    let mut buffer :[u8; 12] = [0; 12];
+    let pseudo = pseudo_header.encode_to_fixed(&mut buffer)
+        .expect("Failed to encode pseudo header");
+    let mut checksum = ipv4::packet::CheckSum{..Default::default()};
+    checksum = ipv4::packet::checkSumUpdate(checksum, std::borrow::Cow::Borrowed(&pseudo));
+    checksum = ipv4::packet::checkSumUpdate(checksum, std::borrow::Cow::Borrowed(udp_datagram));
+    ipv4::packet::checkSumFinish(checksum)
+}
+
+
 impl UDPHub {
     pub fn new(ipv4 :ipv4::Router) -> Self {
         let udp = Self {
@@ -197,19 +226,35 @@ impl UDPHub {
             log::warn!("UDP datagram has unspecified destination address");
             return Err(Error::Protocol("UDP datagram has unspecified destination address".to_string()));
         }
+        let src_ip_addr =  if tuple.src.address.is_unspecified() { // serverがsend_toで呼び出す場合のシナリオ
+            let route = match self.state.ipv4.get_route(tuple.dst.address).await {
+                Some(route) => route,
+                None => {
+                    log::warn!("No route to address {}", tuple.dst.address);
+                    return Err(Error::Protocol(format!("No route to address {}", tuple.dst.address)));
+                }
+            }; 
+            route.device.ipv4_address().address
+        } else {
+            tuple.src.address
+        };
         let datagram = datagram::UDPDatagram{
             header: datagram::UDPHeader {
                 src_port: tuple.src.port,
                 dst_port: tuple.dst.port,
                 length: (8 + data.len()) as u16,
-                checksum: 0, // Checksum calculation is not implemented here
+                checksum: 0,
                 ..Default::default()
             },
             data: std::borrow::Cow::Borrowed(data),
             ..Default::default()
         };
-        let data = datagram.encode_to_vec()?;
-        self.state.ipv4.send(ipv4::packet::ProtocolNumber::UDP,tuple.dst.address,  &data).await?;
+        // チェックサムを計算するためにデータをエンコード
+        let mut data = datagram.encode_to_vec()?;
+        let checksum = udp_checksum(&data, src_ip_addr, tuple.dst.address);
+        data[6] = (checksum >> 8) as u8; // checksumの上位バイト
+        data[7] = (checksum & 0xff) as u8; // checksumの下位バイト
+        self.state.ipv4.send(ipv4::packet::ProtocolNumber::UDP,tuple.dst.address, &data).await?;
         Ok(())
     }
 
@@ -273,7 +318,6 @@ impl UDPHub {
             }
             return Ok(UDPSocket::new(four_tuple, self.clone(), receiver));
         }
-        // port_mapperではdstが相手側srcが自分側の4タプルを管理する
         self.auto_bind(addr,route.device.ipv4_address().address).await
     }
 
@@ -281,7 +325,19 @@ impl UDPHub {
 
 impl ipv4::IPv4Receiver for UDPHub {
     fn receive(&self, pkt: ipv4::packet::IPv4Packet<'static>) -> Result<(), Box<dyn std::error::Error>> {
+        let mut pkt = pkt;
         let (udp_dgram,_) = datagram::UDPDatagram::decode_slice(&pkt.data)?;
+        if udp_dgram.header.checksum != 0 {
+            pkt.data.to_mut()[6] = 0; // チェックサムを0に設定してチェックサムの計算を行う
+            pkt.data.to_mut()[7] = 0; 
+            let checksum = udp_checksum(&pkt.data.as_ref()[..udp_dgram.header.length as usize], net_common::Ipv4Address(pkt.hdr.src_addr), net_common::Ipv4Address(pkt.hdr.dst_addr));
+            if udp_dgram.header.checksum != 0 && udp_dgram.header.checksum != checksum {
+                log::warn!("UDP checksum mismatch: expected {}, got {}", udp_dgram.header.checksum, checksum);
+                return Ok(());
+            }
+            pkt.data.to_mut()[6] = (checksum >> 8) as u8; // チェックサムの上位バイト 
+            pkt.data.to_mut()[7] = (checksum & 0xff) as u8; // チェックサムの下位バイト
+        }
         let src_addr = net_common::AddrPort::new(net_common::Ipv4Address(pkt.hdr.src_addr), udp_dgram.header.src_port);
         let dst_addr = net_common::AddrPort::new(net_common::Ipv4Address(pkt.hdr.dst_addr), udp_dgram.header.dst_port);
         // 検索用4タプルはsrcがlocal,dstがremoteのものなのでここでは逆にする

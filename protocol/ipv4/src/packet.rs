@@ -2,7 +2,8 @@
 #[derive(Debug)]
 pub enum Error {
     PropertySetterError(&'static str),
-    IOError(&'static str, std::io::Error),
+    EncodeError(&'static str, std::io::Error),
+    DecodeError(&'static str, std::io::Error),
     TryFromIntError(std::num::TryFromIntError),
     ArrayLengthMismatch(&'static str,usize /*expected*/,usize /*actual*/),
     AssertError(&'static str),
@@ -13,7 +14,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::PropertySetterError(s) => write!(f, "PropertySetterError: {}", s),
-            Error::IOError(s,e) => write!(f, "IOError: {} {}", s,e),
+            Error::EncodeError(s,e) => write!(f, "EncodeError: {} {}", s,e),
+            Error::DecodeError(s,e) => write!(f, "DecodeError: {} {}", s,e),
             Error::TryFromIntError(e) => write!(f, "TryFromIntError: {}", e),
             Error::ArrayLengthMismatch(s,expected,actual) => write!(f, "ArrayLengthMismatch: {} expected:{} actual:{}", s,expected,actual),
             Error::AssertError(s) => write!(f, "AssertError: {}", s),
@@ -25,7 +27,8 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::IOError(_,e) => Some(e),
+            Error::EncodeError(_,e) => Some(e),
+            Error::DecodeError(_,e) => Some(e),
             Error::TryFromIntError(e) => Some(e),
             Error::PropertySetterError(_) => None,
             Error::ArrayLengthMismatch(_,_,_) => None,
@@ -83,6 +86,9 @@ impl std::convert::From<ProtocolNumber> for u8 {
         unsafe { std::mem::transmute(e) }
     }
 }
+/* Unimplemented op: DECLARE_FUNCTION */
+/* Unimplemented op: DECLARE_STATE */
+/* Unimplemented op: DECLARE_FUNCTION */
 /* Unimplemented op: DECLARE_FUNCTION */
 /* Unimplemented op: DECLARE_FORMAT */
 /* Unimplemented op: DECLARE_FORMAT */
@@ -167,6 +173,13 @@ impl <'a>IPv4Header<'a> {
     }
 }
 #[derive(Debug,Default, Clone, PartialEq, Eq)]
+pub struct CheckSum<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+    pub sum: u32,
+    pub has_prev: bool,
+    pub prev: u8,
+}
+#[derive(Debug,Default, Clone, PartialEq, Eq)]
 pub struct IPv4Header<'a> {
     pub _phantom: std::marker::PhantomData<&'a ()>,
     /* Unimplemented op: DEFINE_ENCODER */
@@ -228,6 +241,57 @@ pub fn checkSum<'a>(data: std::borrow::Cow<'a,[u8]>) -> u16 {
     }
     if ((data.len() % 2) == 1) {
         sum = (sum + (((data)[(data.len() - 1) as usize] as u32) << 8));
+    }
+    while((sum > 65535)) {
+        sum = ((sum & 65535) + (sum >> 16));
+    }
+    return ((!sum) as u16);
+}
+/* Unimplemented op: RETURN_TYPE */
+/* Unimplemented op: END_COND_BLOCK */
+/* Unimplemented op: END_COND_BLOCK */
+/* Unimplemented op: END_COND_BLOCK */
+/* Unimplemented op: END_COND_BLOCK */
+pub fn checkSumUpdate<'a>(s: CheckSum<'a>, data: std::borrow::Cow<'a,[u8]>) -> CheckSum<'a> {
+    let mut p = s;
+    let mut sum = p.sum;
+    if (data.len() == 0) {
+        return p;
+    }
+    if p.has_prev {
+        sum = (sum + (((p.prev as u32) << 8) | ((data)[0 as usize] as u32)));
+        let mut tmp123 = 0;
+        while((tmp123 < ((data.len() - 1) / 2))) {
+            let mut i = tmp123;
+            sum = (sum + ((((data)[((i * 2) + 1) as usize] as u32) << 8) | ((data)[((i * 2) + 2) as usize] as u32)));
+            tmp123+= 1;
+        }
+        if (((data.len() - 1) % 2) != 0) {
+            p.prev = (data)[(data.len() - 1) as usize];
+            p.has_prev = true;
+        }
+    } else {
+        let mut tmp153 = 0;
+        while((tmp153 < (data.len() / 2))) {
+            let mut i = tmp153;
+            sum = (sum + ((((data)[(i * 2) as usize] as u32) << 8) | ((data)[((i * 2) + 1) as usize] as u32)));
+            tmp153+= 1;
+        }
+        if ((data.len() % 2) != 0) {
+            p.prev = (data)[(data.len() - 1) as usize];
+            p.has_prev = true;
+        }
+    }
+    return p;
+}
+/* Unimplemented op: RETURN_TYPE */
+/* Unimplemented op: END_COND_BLOCK */
+/* Unimplemented op: END_COND_BLOCK */
+pub fn checkSumFinish<'a>(s: CheckSum<'a>) -> u16 {
+    let mut p = s;
+    let mut sum = p.sum;
+    if p.has_prev {
+        sum = (sum + ((p.prev as u32) << 8));
     }
     while((sum > 65535)) {
         sum = ((sum & 65535) + (sum >> 16));
@@ -296,78 +360,78 @@ impl <'a>IPv4Header<'a> {
         Ok(&data[0..written])
     }
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        let mut tmp275 = <u8>::default();
-        let mut tmp276 = 0;
-        tmp276 = (tmp276 + 4);
-        tmp275 = (tmp275 | (((self.version() as u8) & 15) << (8 - tmp276)));
-        tmp276 = (tmp276 + 4);
-        tmp275 = (tmp275 | (((self.ihl() as u8) & 15) << (8 - tmp276)));
-        let mut tmp581 = <[u8; 1]>::default();
-        (tmp581)[0 as usize] = tmp275;
-        w.write_all(&tmp581[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp298 = <u8>::default();
-        let mut tmp299 = 0;
-        tmp299 = (tmp299 + 6);
-        tmp298 = (tmp298 | (((self.dscp() as u8) & 63) << (8 - tmp299)));
-        tmp299 = (tmp299 + 2);
-        tmp298 = (tmp298 | (((self.ecn() as u8) & 3) << (8 - tmp299)));
-        let mut tmp586 = <[u8; 1]>::default();
-        (tmp586)[0 as usize] = tmp298;
-        w.write_all(&tmp586[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp443 = <[u8; 2]>::default();
-        let mut tmp444 = 0;
-        while((tmp444 < 2)) {
-            (tmp443)[tmp444 as usize] = (((self.len >> ((1 - tmp444) * 8)) & 255) as u8);
-            tmp444+= 1;
+        let mut tmp380 = <u8>::default();
+        let mut tmp381 = 0;
+        tmp381 = (tmp381 + 4);
+        tmp380 = (tmp380 | (((self.version() as u8) & 15) << (8 - tmp381)));
+        tmp381 = (tmp381 + 4);
+        tmp380 = (tmp380 | (((self.ihl() as u8) & 15) << (8 - tmp381)));
+        let mut tmp686 = <[u8; 1]>::default();
+        (tmp686)[0 as usize] = tmp380;
+        w.write_all(&tmp686[0..1 as usize]).map_err(|e| Error::EncodeError("IPv4Header::bit_field_version_ihl",e))?;
+        let mut tmp403 = <u8>::default();
+        let mut tmp404 = 0;
+        tmp404 = (tmp404 + 6);
+        tmp403 = (tmp403 | (((self.dscp() as u8) & 63) << (8 - tmp404)));
+        tmp404 = (tmp404 + 2);
+        tmp403 = (tmp403 | (((self.ecn() as u8) & 3) << (8 - tmp404)));
+        let mut tmp691 = <[u8; 1]>::default();
+        (tmp691)[0 as usize] = tmp403;
+        w.write_all(&tmp691[0..1 as usize]).map_err(|e| Error::EncodeError("IPv4Header::bit_field_dscp_ecn",e))?;
+        let mut tmp548 = <[u8; 2]>::default();
+        let mut tmp549 = 0;
+        while((tmp549 < 2)) {
+            (tmp548)[tmp549 as usize] = (((self.len >> ((1 - tmp549) * 8)) & 255) as u8);
+            tmp549+= 1;
         }
-        w.write_all(&tmp443[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
-        let mut tmp456 = <[u8; 2]>::default();
-        let mut tmp457 = 0;
-        while((tmp457 < 2)) {
-            (tmp456)[tmp457 as usize] = (((self.id >> ((1 - tmp457) * 8)) & 255) as u8);
-            tmp457+= 1;
+        w.write_all(&tmp548[0..2 as usize]).map_err(|e| Error::EncodeError("IPv4Header::len",e))?;
+        let mut tmp561 = <[u8; 2]>::default();
+        let mut tmp562 = 0;
+        while((tmp562 < 2)) {
+            (tmp561)[tmp562 as usize] = (((self.id >> ((1 - tmp562) * 8)) & 255) as u8);
+            tmp562+= 1;
         }
-        w.write_all(&tmp456[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
-        let mut tmp321 = <u16>::default();
-        let mut tmp323 = 0;
-        tmp323 = (tmp323 + 1);
-        tmp321 = (tmp321 | ((if self.reserved() {1} else {0} & 1) << (16 - tmp323)));
-        tmp323 = (tmp323 + 1);
-        tmp321 = (tmp321 | ((if self.dont_fragment() {1} else {0} & 1) << (16 - tmp323)));
-        tmp323 = (tmp323 + 1);
-        tmp321 = (tmp321 | ((if self.more_fragment() {1} else {0} & 1) << (16 - tmp323)));
-        tmp323 = (tmp323 + 13);
-        tmp321 = (tmp321 | (((self.fragOffset() as u16) & 8191) << (16 - tmp323)));
-        let mut tmp591 = <[u8; 2]>::default();
-        let mut tmp592 = 0;
-        while((tmp592 < 2)) {
-            (tmp591)[tmp592 as usize] = (((tmp321 >> ((1 - tmp592) * 8)) & 255) as u8);
-            tmp592+= 1;
+        w.write_all(&tmp561[0..2 as usize]).map_err(|e| Error::EncodeError("IPv4Header::id",e))?;
+        let mut tmp426 = <u16>::default();
+        let mut tmp428 = 0;
+        tmp428 = (tmp428 + 1);
+        tmp426 = (tmp426 | ((if self.reserved() {1} else {0} & 1) << (16 - tmp428)));
+        tmp428 = (tmp428 + 1);
+        tmp426 = (tmp426 | ((if self.dont_fragment() {1} else {0} & 1) << (16 - tmp428)));
+        tmp428 = (tmp428 + 1);
+        tmp426 = (tmp426 | ((if self.more_fragment() {1} else {0} & 1) << (16 - tmp428)));
+        tmp428 = (tmp428 + 13);
+        tmp426 = (tmp426 | (((self.fragOffset() as u16) & 8191) << (16 - tmp428)));
+        let mut tmp696 = <[u8; 2]>::default();
+        let mut tmp697 = 0;
+        while((tmp697 < 2)) {
+            (tmp696)[tmp697 as usize] = (((tmp426 >> ((1 - tmp697) * 8)) & 255) as u8);
+            tmp697+= 1;
         }
-        w.write_all(&tmp591[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp469 = <[u8; 1]>::default();
-        (tmp469)[0 as usize] = self.ttl;
-        w.write_all(&tmp469[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
-        let mut tmp474 = <[u8; 1]>::default();
-        (tmp474)[0 as usize] = u8::from(self.proto);
-        w.write_all(&tmp474[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
-        let mut tmp479 = <[u8; 2]>::default();
-        let mut tmp480 = 0;
-        while((tmp480 < 2)) {
-            (tmp479)[tmp480 as usize] = (((self.checksum >> ((1 - tmp480) * 8)) & 255) as u8);
-            tmp480+= 1;
+        w.write_all(&tmp696[0..2 as usize]).map_err(|e| Error::EncodeError("IPv4Header::bit_field_reserved_dont_fragment_more_fragment_fragOffset",e))?;
+        let mut tmp574 = <[u8; 1]>::default();
+        (tmp574)[0 as usize] = self.ttl;
+        w.write_all(&tmp574[0..1 as usize]).map_err(|e| Error::EncodeError("IPv4Header::ttl",e))?;
+        let mut tmp579 = <[u8; 1]>::default();
+        (tmp579)[0 as usize] = u8::from(self.proto);
+        w.write_all(&tmp579[0..1 as usize]).map_err(|e| Error::EncodeError("IPv4Header::proto",e))?;
+        let mut tmp584 = <[u8; 2]>::default();
+        let mut tmp585 = 0;
+        while((tmp585 < 2)) {
+            (tmp584)[tmp585 as usize] = (((self.checksum >> ((1 - tmp585) * 8)) & 255) as u8);
+            tmp585+= 1;
         }
-        w.write_all(&tmp479[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
-        w.write_all(&self.src_addr[0..4 as usize]).map_err(|e| Error::IOError("self.src_addr",e))?;
-        w.write_all(&self.dst_addr[0..4 as usize]).map_err(|e| Error::IOError("self.dst_addr",e))?;
+        w.write_all(&tmp584[0..2 as usize]).map_err(|e| Error::EncodeError("IPv4Header::checksum",e))?;
+        w.write_all(&self.src_addr[0..4 as usize]).map_err(|e| Error::EncodeError("IPv4Header::src_addr",e))?;
+        w.write_all(&self.dst_addr[0..4 as usize]).map_err(|e| Error::EncodeError("IPv4Header::dst_addr",e))?;
         if(!(self.ihl() >= 5)) { 
         return Err(Error::AssertError("(self.ihl() >= 5)"));
         }
-        let mut tmp109 = (((self.ihl() as u8) * 4) - 20);
-        if self.options.len() != tmp109 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.options", tmp109 as usize, self.options.len()));
+        let mut tmp214 = (((self.ihl() as u8) * 4) - 20);
+        if self.options.len() != tmp214 as usize {
+        return Err(Error::ArrayLengthMismatch("encode IPv4Header::options", tmp214 as usize, self.options.len()));
         }
-        w.write_all(&self.options[0..self.options.len() as usize]).map_err(|e| Error::IOError("self.options",e))?;
+        w.write_all(&self.options[0..self.options.len() as usize]).map_err(|e| Error::EncodeError("IPv4Header::options",e))?;
         return Ok(());
     }
 }
@@ -394,11 +458,11 @@ impl <'a>IPv4Packet<'a> {
         return Err(Error::AssertError("(self.hdr.len >= ((self.hdr.ihl() as u16) * 4))"));
         }
         let mut len = (self.hdr.len - ((self.hdr.ihl() * 4) as u16));
-        let mut tmp123 = len;
-        if self.data.len() != tmp123 as usize {
-        return Err(Error::ArrayLengthMismatch("encode self.data", tmp123 as usize, self.data.len()));
+        let mut tmp228 = len;
+        if self.data.len() != tmp228 as usize {
+        return Err(Error::ArrayLengthMismatch("encode IPv4Packet::data", tmp228 as usize, self.data.len()));
         }
-        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::IOError("self.data",e))?;
+        w.write_all(&self.data[0..self.data.len() as usize]).map_err(|e| Error::EncodeError("IPv4Packet::data",e))?;
         return Ok(());
     }
 }
@@ -426,21 +490,21 @@ impl <'a>IPv4PseudoHeader<'a> {
         Ok(&data[0..written])
     }
     pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
-        w.write_all(&self.srcAddr[0..4 as usize]).map_err(|e| Error::IOError("self.srcAddr",e))?;
-        w.write_all(&self.dstAddr[0..4 as usize]).map_err(|e| Error::IOError("self.dstAddr",e))?;
-        let mut tmp491 = <[u8; 1]>::default();
-        (tmp491)[0 as usize] = self.zero;
-        w.write_all(&tmp491[0..1 as usize]).map_err(|e| Error::IOError("self.zero",e))?;
-        let mut tmp496 = <[u8; 1]>::default();
-        (tmp496)[0 as usize] = u8::from(self.protocol);
-        w.write_all(&tmp496[0..1 as usize]).map_err(|e| Error::IOError("self.protocol",e))?;
-        let mut tmp501 = <[u8; 2]>::default();
-        let mut tmp502 = 0;
-        while((tmp502 < 2)) {
-            (tmp501)[tmp502 as usize] = (((self.length >> ((1 - tmp502) * 8)) & 255) as u8);
-            tmp502+= 1;
+        w.write_all(&self.srcAddr[0..4 as usize]).map_err(|e| Error::EncodeError("IPv4PseudoHeader::srcAddr",e))?;
+        w.write_all(&self.dstAddr[0..4 as usize]).map_err(|e| Error::EncodeError("IPv4PseudoHeader::dstAddr",e))?;
+        let mut tmp596 = <[u8; 1]>::default();
+        (tmp596)[0 as usize] = self.zero;
+        w.write_all(&tmp596[0..1 as usize]).map_err(|e| Error::EncodeError("IPv4PseudoHeader::zero",e))?;
+        let mut tmp601 = <[u8; 1]>::default();
+        (tmp601)[0 as usize] = u8::from(self.protocol);
+        w.write_all(&tmp601[0..1 as usize]).map_err(|e| Error::EncodeError("IPv4PseudoHeader::protocol",e))?;
+        let mut tmp606 = <[u8; 2]>::default();
+        let mut tmp607 = 0;
+        while((tmp607 < 2)) {
+            (tmp606)[tmp607 as usize] = (((self.length >> ((1 - tmp607) * 8)) & 255) as u8);
+            tmp607+= 1;
         }
-        w.write_all(&tmp501[0..2 as usize]).map_err(|e| Error::IOError("self.length",e))?;
+        w.write_all(&tmp606[0..2 as usize]).map_err(|e| Error::EncodeError("IPv4PseudoHeader::length",e))?;
         return Ok(());
     }
 }
@@ -505,78 +569,78 @@ impl <'a>IPv4Header<'a> {
         Ok(result)
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        let mut tmp363 = <u8>::default();
-        let mut tmp364 = 0;
-        let mut tmp603 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp603[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        tmp363 = (tmp603)[0 as usize];
-        tmp364 = (tmp364 + 4);
-        self.set_version((((tmp363 >> (8 - tmp364)) & 15) as u8));
-        tmp364 = (tmp364 + 4);
-        self.set_ihl((((tmp363 >> (8 - tmp364)) & 15) as u8));
-        let mut tmp384 = <u8>::default();
-        let mut tmp385 = 0;
-        let mut tmp608 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp608[0..1 as usize]).map_err(|e| Error::IOError("self",e))?;
-        tmp384 = (tmp608)[0 as usize];
-        tmp385 = (tmp385 + 6);
-        self.set_dscp((((tmp384 >> (8 - tmp385)) & 63) as u8));
-        tmp385 = (tmp385 + 2);
-        self.set_ecn((((tmp384 >> (8 - tmp385)) & 3) as u8));
-        let mut tmp513 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp513[0..2 as usize]).map_err(|e| Error::IOError("self.len",e))?;
-        let mut tmp514 = 0;
-        while((tmp514 < 2)) {
-            self.len = (self.len | (((tmp513)[tmp514 as usize] as u16) << ((1 - tmp514) * 8)));
-            tmp514+= 1;
+        let mut tmp468 = <u8>::default();
+        let mut tmp469 = 0;
+        let mut tmp708 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp708[0..1 as usize]).map_err(|e| Error::DecodeError("IPv4Header::bit_field_version_ihl",e))?;
+        tmp468 = (tmp708)[0 as usize];
+        tmp469 = (tmp469 + 4);
+        self.set_version((((tmp468 >> (8 - tmp469)) & 15) as u8));
+        tmp469 = (tmp469 + 4);
+        self.set_ihl((((tmp468 >> (8 - tmp469)) & 15) as u8));
+        let mut tmp489 = <u8>::default();
+        let mut tmp490 = 0;
+        let mut tmp713 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp713[0..1 as usize]).map_err(|e| Error::DecodeError("IPv4Header::bit_field_dscp_ecn",e))?;
+        tmp489 = (tmp713)[0 as usize];
+        tmp490 = (tmp490 + 6);
+        self.set_dscp((((tmp489 >> (8 - tmp490)) & 63) as u8));
+        tmp490 = (tmp490 + 2);
+        self.set_ecn((((tmp489 >> (8 - tmp490)) & 3) as u8));
+        let mut tmp618 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp618[0..2 as usize]).map_err(|e| Error::DecodeError("IPv4Header::len",e))?;
+        let mut tmp619 = 0;
+        while((tmp619 < 2)) {
+            self.len = (self.len | (((tmp618)[tmp619 as usize] as u16) << ((1 - tmp619) * 8)));
+            tmp619+= 1;
         }
-        let mut tmp525 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp525[0..2 as usize]).map_err(|e| Error::IOError("self.id",e))?;
-        let mut tmp526 = 0;
-        while((tmp526 < 2)) {
-            self.id = (self.id | (((tmp525)[tmp526 as usize] as u16) << ((1 - tmp526) * 8)));
-            tmp526+= 1;
+        let mut tmp630 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp630[0..2 as usize]).map_err(|e| Error::DecodeError("IPv4Header::id",e))?;
+        let mut tmp631 = 0;
+        while((tmp631 < 2)) {
+            self.id = (self.id | (((tmp630)[tmp631 as usize] as u16) << ((1 - tmp631) * 8)));
+            tmp631+= 1;
         }
-        let mut tmp405 = <u16>::default();
-        let mut tmp406 = 0;
-        let mut tmp613 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp613[0..2 as usize]).map_err(|e| Error::IOError("self",e))?;
-        let mut tmp614 = 0;
-        while((tmp614 < 2)) {
-            tmp405 = (tmp405 | (((tmp613)[tmp614 as usize] as u16) << ((1 - tmp614) * 8)));
-            tmp614+= 1;
+        let mut tmp510 = <u16>::default();
+        let mut tmp511 = 0;
+        let mut tmp718 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp718[0..2 as usize]).map_err(|e| Error::DecodeError("IPv4Header::bit_field_reserved_dont_fragment_more_fragment_fragOffset",e))?;
+        let mut tmp719 = 0;
+        while((tmp719 < 2)) {
+            tmp510 = (tmp510 | (((tmp718)[tmp719 as usize] as u16) << ((1 - tmp719) * 8)));
+            tmp719+= 1;
         }
-        tmp406 = (tmp406 + 1);
-        self.set_reserved(((tmp405 >> (16 - tmp406)) & 1) != 0);
-        tmp406 = (tmp406 + 1);
-        self.set_dont_fragment(((tmp405 >> (16 - tmp406)) & 1) != 0);
-        tmp406 = (tmp406 + 1);
-        self.set_more_fragment(((tmp405 >> (16 - tmp406)) & 1) != 0);
-        tmp406 = (tmp406 + 13);
-        self.set_fragOffset((((tmp405 >> (16 - tmp406)) & 8191) as u16));
-        let mut tmp537 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp537[0..1 as usize]).map_err(|e| Error::IOError("self.ttl",e))?;
-        self.ttl = (tmp537)[0 as usize];
-        let mut tmp131 = <u8>::default();
-        let mut tmp542 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp542[0..1 as usize]).map_err(|e| Error::IOError("self.proto",e))?;
-        tmp131 = (tmp542)[0 as usize];
-        self.proto = ProtocolNumber::from(tmp131);
-        let mut tmp547 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp547[0..2 as usize]).map_err(|e| Error::IOError("self.checksum",e))?;
-        let mut tmp548 = 0;
-        while((tmp548 < 2)) {
-            self.checksum = (self.checksum | (((tmp547)[tmp548 as usize] as u16) << ((1 - tmp548) * 8)));
-            tmp548+= 1;
+        tmp511 = (tmp511 + 1);
+        self.set_reserved(((tmp510 >> (16 - tmp511)) & 1) != 0);
+        tmp511 = (tmp511 + 1);
+        self.set_dont_fragment(((tmp510 >> (16 - tmp511)) & 1) != 0);
+        tmp511 = (tmp511 + 1);
+        self.set_more_fragment(((tmp510 >> (16 - tmp511)) & 1) != 0);
+        tmp511 = (tmp511 + 13);
+        self.set_fragOffset((((tmp510 >> (16 - tmp511)) & 8191) as u16));
+        let mut tmp642 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp642[0..1 as usize]).map_err(|e| Error::DecodeError("IPv4Header::ttl",e))?;
+        self.ttl = (tmp642)[0 as usize];
+        let mut tmp236 = <u8>::default();
+        let mut tmp647 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp647[0..1 as usize]).map_err(|e| Error::DecodeError("IPv4Header::proto",e))?;
+        tmp236 = (tmp647)[0 as usize];
+        self.proto = ProtocolNumber::from(tmp236);
+        let mut tmp652 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp652[0..2 as usize]).map_err(|e| Error::DecodeError("IPv4Header::checksum",e))?;
+        let mut tmp653 = 0;
+        while((tmp653 < 2)) {
+            self.checksum = (self.checksum | (((tmp652)[tmp653 as usize] as u16) << ((1 - tmp653) * 8)));
+            tmp653+= 1;
         }
-        r.read_exact(&mut self.src_addr[0..4 as usize]).map_err(|e| Error::IOError("self.src_addr",e))?;
-        r.read_exact(&mut self.dst_addr[0..4 as usize]).map_err(|e| Error::IOError("self.dst_addr",e))?;
+        r.read_exact(&mut self.src_addr[0..4 as usize]).map_err(|e| Error::DecodeError("IPv4Header::src_addr",e))?;
+        r.read_exact(&mut self.dst_addr[0..4 as usize]).map_err(|e| Error::DecodeError("IPv4Header::dst_addr",e))?;
         if(!(self.ihl() >= 5)) { 
         return Err(Error::AssertError("(self.ihl() >= 5)"));
         }
-        let mut tmp138 = (((self.ihl() as u8) * 4) - 20);
-        self.options.to_mut().resize(tmp138 as usize,0);
-        r.read_exact(self.options.to_mut()).map_err(|e| Error::IOError("self.options",e))?;
+        let mut tmp243 = (((self.ihl() as u8) * 4) - 20);
+        self.options.to_mut().resize(tmp243 as usize,0);
+        r.read_exact(self.options.to_mut()).map_err(|e| Error::DecodeError("IPv4Header::options",e))?;
         return Ok(());
     }
 }
@@ -602,9 +666,9 @@ impl <'a>IPv4Packet<'a> {
         return Err(Error::AssertError("(self.hdr.len >= ((self.hdr.ihl() as u16) * 4))"));
         }
         let mut len = (self.hdr.len - ((self.hdr.ihl() * 4) as u16));
-        let mut tmp150 = len;
-        self.data.to_mut().resize(tmp150 as usize,0);
-        r.read_exact(self.data.to_mut()).map_err(|e| Error::IOError("self.data",e))?;
+        let mut tmp255 = len;
+        self.data.to_mut().resize(tmp255 as usize,0);
+        r.read_exact(self.data.to_mut()).map_err(|e| Error::DecodeError("IPv4Packet::data",e))?;
         return Ok(());
     }
 }
@@ -631,22 +695,22 @@ impl <'a>IPv4PseudoHeader<'a> {
         Ok(result)
     }
     pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
-        r.read_exact(&mut self.srcAddr[0..4 as usize]).map_err(|e| Error::IOError("self.srcAddr",e))?;
-        r.read_exact(&mut self.dstAddr[0..4 as usize]).map_err(|e| Error::IOError("self.dstAddr",e))?;
-        let mut tmp559 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp559[0..1 as usize]).map_err(|e| Error::IOError("self.zero",e))?;
-        self.zero = (tmp559)[0 as usize];
-        let mut tmp153 = <u8>::default();
-        let mut tmp564 = <[u8; 1]>::default();
-        r.read_exact(&mut tmp564[0..1 as usize]).map_err(|e| Error::IOError("self.protocol",e))?;
-        tmp153 = (tmp564)[0 as usize];
-        self.protocol = ProtocolNumber::from(tmp153);
-        let mut tmp569 = <[u8; 2]>::default();
-        r.read_exact(&mut tmp569[0..2 as usize]).map_err(|e| Error::IOError("self.length",e))?;
-        let mut tmp570 = 0;
-        while((tmp570 < 2)) {
-            self.length = (self.length | (((tmp569)[tmp570 as usize] as u16) << ((1 - tmp570) * 8)));
-            tmp570+= 1;
+        r.read_exact(&mut self.srcAddr[0..4 as usize]).map_err(|e| Error::DecodeError("IPv4PseudoHeader::srcAddr",e))?;
+        r.read_exact(&mut self.dstAddr[0..4 as usize]).map_err(|e| Error::DecodeError("IPv4PseudoHeader::dstAddr",e))?;
+        let mut tmp664 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp664[0..1 as usize]).map_err(|e| Error::DecodeError("IPv4PseudoHeader::zero",e))?;
+        self.zero = (tmp664)[0 as usize];
+        let mut tmp258 = <u8>::default();
+        let mut tmp669 = <[u8; 1]>::default();
+        r.read_exact(&mut tmp669[0..1 as usize]).map_err(|e| Error::DecodeError("IPv4PseudoHeader::protocol",e))?;
+        tmp258 = (tmp669)[0 as usize];
+        self.protocol = ProtocolNumber::from(tmp258);
+        let mut tmp674 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp674[0..2 as usize]).map_err(|e| Error::DecodeError("IPv4PseudoHeader::length",e))?;
+        let mut tmp675 = 0;
+        while((tmp675 < 2)) {
+            self.length = (self.length | (((tmp674)[tmp675 as usize] as u16) << ((1 - tmp675) * 8)));
+            tmp675+= 1;
         }
         return Ok(());
     }
