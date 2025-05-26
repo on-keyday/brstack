@@ -374,7 +374,7 @@ impl ipv4::IPv4Receiver for UDPHub {
                     return;
                 }
             }
-            log::warn!("No matching UDP socket found for datagram {}",four_tuple);
+            log::warn!("No matching UDP socket found for datagram {} -> {}",four_tuple.dst, four_tuple.src);
             udp.state.ipv4.send_port_unreachable(pkt);
         });
         Ok(())
