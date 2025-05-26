@@ -161,6 +161,18 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Packet(e) => Some(e),
+            Error::Ethernet(e) => Some(e),
+            Error::Arp(e) => Some(e),
+            Error::Protocol(_) => None,
+            Error::UpperLayerError(e) => None,
+        }
+    }
+}
+
 fn check_checksum(hdr: &packet::IPv4Header<'_>) -> Result<(), Error> {
     let checksum = hdr.checksum;
     let mut hdr = hdr.clone();
@@ -204,6 +216,13 @@ impl Router {
             "Registered protocol: {}",
             proto,
         );
+    }
+
+    pub async fn get_route(
+        &self,
+        address: net_common::Ipv4Address,
+    ) -> Option<std::sync::Arc<RoutingEntry>> {
+        self.state.routing_table.lookup(&address).await
     }
 
     pub async fn add_route(

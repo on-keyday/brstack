@@ -23,10 +23,51 @@ pub struct AddrPort {
     pub address: Ipv4Address,
     pub port: u16,
 }
+
+
 impl AddrPort {
     pub fn new(address: Ipv4Address, port: u16) -> Self {
         Self { address, port }
     }
+}
+
+impl std::hash::Hash for AddrPort {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.address.hash(state);
+        self.port.hash(state);
+    }
+}
+
+impl std::fmt::Display for AddrPort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.address, self.port)
+    }
+}
+
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
+pub struct FourTuple{
+    pub src: AddrPort,
+    pub dst: AddrPort,
+}
+
+impl FourTuple {
+    pub fn new(src: AddrPort, dst: AddrPort) -> Self {
+        Self { src, dst }
+    }
+}
+
+impl std::fmt::Display for FourTuple {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} -> {}", self.src, self.dst)
+    }
+}
+
+impl std::hash::Hash for FourTuple {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.src.hash(state);
+        self.dst.hash(state);
+    }
+    
 }
 
 pub const UNSPECIFIED : Ipv4Address = Ipv4Address([0, 0, 0, 0]);

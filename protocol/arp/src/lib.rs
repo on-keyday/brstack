@@ -73,6 +73,17 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Packet(err) => Some(err),
+            Error::Ethernet(err) => Some(err),
+            Error::Protocol(_) => None,
+            Error::RecvError(err) => Some(err),
+        }
+    }
+}
+
 impl Default for AddressResolutionTable {
     fn default() -> Self {
         Self::new(
