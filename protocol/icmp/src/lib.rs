@@ -173,7 +173,7 @@ fn check_checksum(icmp :&packet::ICMPv4Packet<'_>) -> Result<(), Error> {
     let checksum = icmp.header.checksum;
     let mut icmp = icmp.clone();
     icmp.header.checksum = 0;
-    let mut buffer = [0u8; 64];
+    let mut buffer = [0u8; 2048];
     icmp.encode_to_fixed(&mut buffer)?;
     let computed_checksum = ipv4::packet::checkSum(std::borrow::Cow::Borrowed(&buffer));
     if checksum != computed_checksum {
@@ -202,9 +202,9 @@ impl ipv4::IPv4Receiver for ICMPService {
         } else if let Some(reply) = icmp_packet.echo_reply() {
             log::info!("Received ICMP echo reply from {}: {:?}", src_addr, reply);
         } else if let Some(dst_unreachable) = icmp_packet.destination_unreachable() {
-            log::info!("Received ICMP destination unreachable from {}: {:?}", src_addr, dst_unreachable);
+            log::info!("Received ICMP destination unreachable from {}: {} {:?}", src_addr,net_common::ICMPv4DstUnreachableCode::from(icmp_packet.header.code), dst_unreachable);
         } else if let Some(time_exceeded) = icmp_packet.time_exceeded() {
-            log::info!("Received ICMP time exceeded from {}: {:?}", src_addr, time_exceeded);
+            log::info!("Received ICMP time exceeded from {}: {} {:?}", src_addr,net_common::ICMPv4TimeExceededCode::from(icmp_packet.header.code), time_exceeded);
         } else {
             log::warn!("Received unknown ICMP packet from {}: {:?}", src_addr, icmp_packet);
         }

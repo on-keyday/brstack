@@ -126,6 +126,7 @@ dependencies = [
  "log",
  "net_common",
  "tokio",
+ "udp",
 ]
 
 [[package]]

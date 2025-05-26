@@ -33,5 +33,11 @@ ethernet = { path = "protocol/ethernet" }
 ## ARP 
 arp = { path = "protocol/arp" }
 
+ipv4 = { path = "protocol/ipv4" }
+
+icmp = { path = "protocol/icmp" }
+
+udp = { path = "protocol/udp" }
+
 ## Common Definitions (Addresses, Constants,etc...)
 net_common = { path = "protocol/net_common" }

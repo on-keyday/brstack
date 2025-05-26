@@ -120,6 +120,13 @@ impl UDPSocket {
         }
        self.receive_from().await.map(|(data, _addr)| data)
     }
+
+    pub fn local_addr(&self) -> net_common::AddrPort {
+        self.four_tuple.src
+    }
+    pub fn remote_addr(&self) -> net_common::AddrPort {
+        self.four_tuple.dst
+    }
 }
 
 impl Drop for UDPSocket {
