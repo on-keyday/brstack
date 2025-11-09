@@ -1,5 +1,5 @@
-use core::net;
-use std::sync::RwLock;
+use std::{borrow::Cow, sync::RwLock};
+use tokio::sync::RwLock as TokioRwLock;
 
 pub mod packet;
 pub struct RoutingEntry {
@@ -81,6 +81,11 @@ pub trait IPv4Receiver {
     fn receive(&self, pkt: packet::IPv4Packet<'static>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
+pub trait IPv4Nat {
+    fn translate_outbound(& self,out_dev :&ethernet::NetworkInterface, hdr: & mut packet::IPv4Header<'_>, payload: & mut Data<'_>) -> Result<(), Box<dyn std::error::Error>>;
+    fn translate_inbound(& self, in_dev :&ethernet::NetworkInterface, hdr: & mut packet::IPv4Header<'_>, payload: & mut Data<'_>) -> Result<(), Box<dyn std::error::Error>>;
+}
+
 pub trait ICMPSender {
     fn send_time_exceeded(
         &self,
@@ -100,6 +105,7 @@ struct RouterState {
     arp: arp::AddressResolutionTable,
     protocols: RwLock<std::collections::HashMap<u8, Box<dyn IPv4Receiver + Send + Sync>>>,
     icmp_sender: RwLock<Option<Box<dyn ICMPSender + Send + Sync>>>,
+    nat: TokioRwLock<Option<Box<dyn IPv4Nat + Send + Sync>>>,
 }
 
 #[derive(Clone)]
@@ -136,6 +142,12 @@ impl From<arp::Error> for Error {
 impl From<ethernet::Error> for Error {
     fn from(err: ethernet::Error) -> Self {
         Error::Ethernet(err)
+    }
+}
+
+impl From<Box<dyn std::error::Error + 'static>> for Error {
+    fn from(err: Box<dyn std::error::Error>) -> Self {
+        Error::UpperLayerError(err)
     }
 }
 
@@ -186,6 +198,47 @@ fn check_checksum(hdr: &packet::IPv4Header<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+pub enum Data<'a> {
+    Mut(&'a mut [u8]),
+    Imm(&'a [u8]),
+    Vec(Vec<u8>),
+    Cow(&'a mut Cow<'a, [u8]>),
+}
+
+impl Data<'_> {
+    pub fn len(&self) -> usize {
+        match self {
+            Data::Mut(slice) => slice.len(),
+            Data::Imm(slice) => slice.len(),
+            Data::Vec(vec) => vec.len(),
+            Data::Cow(cow) => cow.len(),
+        }
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            Data::Mut(slice) => slice,
+            Data::Imm(slice) => slice,
+            Data::Vec(vec) => vec.as_slice(),
+            Data::Cow(cow) => cow.as_ref(),
+        }
+    }
+
+    pub fn to_mut(&mut self) -> &mut [u8] {
+        match self {
+            Data::Mut(slice) => slice,
+            Data::Imm(m) =>  {
+                *self = Data::Vec(m.to_vec());
+                if let Data::Vec(vec) = self {
+                    vec.as_mut_slice()
+                } else { unreachable!() }
+            }
+            Data::Vec(vec) => vec.as_mut_slice(),
+            Data::Cow(cow) => cow.to_mut() 
+        }
+    }
+}
+
 impl Router {
     pub fn new(arp: arp::AddressResolutionTable) -> Self {
         Router {
@@ -194,9 +247,11 @@ impl Router {
                 arp,
                 protocols: RwLock::new(std::collections::HashMap::new()),
                 icmp_sender: RwLock::new(None),
+                nat: TokioRwLock::new(None),
             }),
         }
     }
+
 
     pub fn register_icmp_sender(
         &self,
@@ -204,6 +259,14 @@ impl Router {
     ) {
         *self.state.icmp_sender.write().unwrap() = Some(sender);
         log::info!("Registered ICMP sender");
+    }
+
+    pub async fn register_nat(
+        &self,
+        nat: Box<dyn IPv4Nat + Send + Sync>,
+    ) {
+        *self.state.nat.write().await = Some(nat);
+        log::info!("Registered IPv4 NAT");
     }
 
     pub fn register_protocol(
@@ -257,7 +320,7 @@ impl Router {
         dst_addr: net_common::Ipv4Address,
         dst_mac: &net_common::MacAddress,
         device: &ethernet::NetworkInterface,
-        data: &[u8],
+        data: &mut Data<'_>,
     ) -> Result<(), Error> {
         if data.len() > 2048 {
             return Err(Error::Protocol(ProtocolError::PacketTooLarge(data.len(), 2048)));
@@ -272,10 +335,15 @@ impl Router {
         pkt.hdr.checksum = 0;
         pkt.hdr.set_dont_fragment(true);
         pkt.hdr.ttl = ttl;
+        // NATが設定されていれば変換を行う
+        let read_lock = self.state.nat.read().await;
+        if let Some(nat) = read_lock.as_ref() {
+            nat.translate_outbound(device,&mut pkt.hdr, data)?;
+        }
         let mut buffer = [0u8; 20];
         pkt.hdr.encode_to_fixed(&mut buffer)?;
         pkt.hdr.checksum = packet::checkSum(std::borrow::Cow::Borrowed(&buffer));
-        pkt.data = std::borrow::Cow::Borrowed(data);
+        pkt.data = Cow::Borrowed(data.as_slice());
         if device.mtu() < pkt.hdr.len as u32 { // フラグメンテーションをサポートしないので...
             return Err(Error::Protocol(ProtocolError::PacketTooLarge(
                 pkt.hdr.len as usize,
@@ -310,7 +378,7 @@ impl Router {
         ttl: u8,
         src_addr: Option<net_common::Ipv4Address>,
         dst_addr: net_common::Ipv4Address,
-        data: &[u8],
+        data: &mut Data<'_>,
     ) -> Result<(), Error> {
         let entry = self.state.routing_table.lookup(&dst_addr).await;
         if let Some(entry) = entry {
@@ -348,9 +416,9 @@ impl Router {
         &self,
         proto: packet::ProtocolNumber,
         dst_addr: net_common::Ipv4Address,
-        data: &[u8],
+        data: &mut [u8], // for NAT translation, mutable
     ) -> Result<(), Error> {
-        self.send_routed(proto, 64,None, dst_addr, data).await
+        self.send_routed(proto, 64,None, dst_addr, &mut Data::Mut(data)).await
     }
 
     async fn route(&self, pkt: packet::IPv4Packet<'_>) {
@@ -369,7 +437,7 @@ impl Router {
             pkt.hdr.ttl - 1,
             Some(net_common::Ipv4Address(pkt.hdr.src_addr)),
             net_common::Ipv4Address(pkt.hdr.dst_addr),
-            pkt.data.as_ref(),
+            &mut Data::Imm(&pkt.data),
         )
         .await
         .unwrap_or_else(|e| {
@@ -411,14 +479,21 @@ impl Router {
         });
     }
 
+
+
     pub async fn receive(
         &self,
         device: &ethernet::NetworkInterface,
         frame: &ethernet::frame::EthernetFrame<'_>,
     ) -> Result<(), Error> {
         let data = frame.data().unwrap();
-        let (pkt, _) = packet::IPv4Packet::decode_slice(&data)?;
+        let (mut pkt, _) = packet::IPv4Packet::decode_slice(&data)?;
         check_checksum(&pkt.hdr)?;
+        let read_lock = self.state.nat.read().await;
+        let data = pkt.data.to_mut(); // decode_sliceは既に所有権を持った状態パケット構築しているので安全にmutable参照を取れる
+        if let Some(nat) = read_lock.as_ref() {
+            nat.translate_inbound(device,&mut pkt.hdr, &mut Data::Mut(data))?;
+        }
         let dst_addr = net_common::Ipv4Address(pkt.hdr.dst_addr);
         if device.ipv4_address().address != dst_addr
             && !device.ipv4_address().is_broadcast_address(dst_addr)
@@ -435,8 +510,7 @@ impl Router {
         let protocols = self.state.protocols.read().unwrap();
         if let Some(receiver) = protocols.get(&proto.into()) {
             receiver
-                .receive(pkt)
-                .map_err(|e| Error::UpperLayerError(e))?;
+                .receive(pkt)?;
         } else {
             log::warn!("No protocol handler for protocol number {}", proto);
             if let Some(icmp_sender) = self.state.icmp_sender.read().unwrap().as_ref() {

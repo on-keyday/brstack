@@ -62,6 +62,7 @@ fn checkSumUpdate(s :CheckSum,data :[]u8) -> CheckSum:
         if data.length % 2 != 0:
             p.prev = data[data.length-1]
             p.has_prev = true
+    p.sum = sum
     return p
 
 fn checkSumFinish(s :CheckSum) -> u16:
