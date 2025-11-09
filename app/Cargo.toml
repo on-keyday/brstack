@@ -24,6 +24,8 @@ arp = { path = "../protocol/arp" }
 ipv4 = { path = "../protocol/ipv4" }
 icmp = { path = "../protocol/icmp" }
 udp = { path = "../protocol/udp" }
+nat = { path = "../protocol/nat" }
+stun = { path = "../protocol/stun" }
 if-addrs = "0.13.4"
 log = "0.4.25"
 env_logger = "0.11.6"

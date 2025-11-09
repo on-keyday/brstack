@@ -12,11 +12,11 @@ fn parse_routing_table(routing: &str, interfaces: Vec<ethernet::NetworkInterface
             if splited.len() != 2 {
                 panic!("Invalid arguments");
             }
-            let bits = splited[1].parse::<u8>().unwrap();
+            let bits = splited[1].parse::<u8>().expect("Bits should be a number");
             if bits > 32 {
                 panic!("Invalid arguments");
             }
-            let prefix_addr = splited[0].parse::<std::net::Ipv4Addr>().unwrap().octets();
+            let prefix_addr = splited[0].parse::<std::net::Ipv4Addr>().expect("IP address should be here").octets();
             (
                 net_common::Ipv4Prefix::new(
                     prefix_addr[0],
@@ -25,7 +25,7 @@ fn parse_routing_table(routing: &str, interfaces: Vec<ethernet::NetworkInterface
                     prefix_addr[3],
                     bits,
                 ),
-                net_common::Ipv4Address(chunk[1].parse::<std::net::Ipv4Addr>().unwrap().octets()),
+                net_common::Ipv4Address(chunk[1].parse::<std::net::Ipv4Addr>().expect("IP address should be here").octets()),
             )
         })
         .map(|(prefix,next_hop)|{
@@ -56,8 +56,16 @@ fn parse_routing_table(routing: &str, interfaces: Vec<ethernet::NetworkInterface
         .collect::<Vec<_>>()
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+  tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .thread_name("brstack-thread")
+    .build()
+    .unwrap()
+    .block_on(async_main())
+}
+
+async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
   env_logger::init();
   let interfaces = ethernet::get_interfaces()?;
   // DSTがある場合は、環境変数から取得する(でなければNone)
@@ -75,10 +83,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let routing = parse_routing_table(&routing, interfaces.clone());
   let arp_table = arp::AddressResolutionTable::default();
   let router = ipv4::Router::new(arp_table.clone());
-  for (prefix, next_hop, longest) in routing {
-    router.add_route(prefix, next_hop, longest).await;
+  for (prefix, next_hop,device) in routing {
+    if role == "nat_router" {
+      if prefix.prefix_length == 0 { // デフォルトルートをnatの外側として扱う
+        let nat =  nat::NAT::new(device.clone(),20000,65534);
+        router.register_nat(Box::new(nat)).await;
+      }
+    }
+    router.add_route(prefix, next_hop, device).await;
   }
-  let icmp = icmp::ICMPService::new(router.clone());
+  icmp::ICMPService::register(router.clone());
   let udp = udp::UDPHub::new(router.clone());
 
 
@@ -134,7 +148,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       }
     });
   }
-  if let Some(dst_ip) = dst_ip {
+  if role == "client" {
+    let dst_ip = dst_ip.expect("DST should be set for client");
     let udp = udp.clone();
     tokio::spawn(async move {
       let mut socket = udp.connect(
@@ -188,6 +203,64 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+  } else if role == "stun_client" {
+    let dst_ip = dst_ip.expect("DST should be set for stun_client");
+    let udp = udp.clone();
+    tokio::spawn(async move {
+      let stun_transaction_id: [u8; 12] = [123, 45, 67, 89, 10, 11, 12, 13, 14, 15, 16, 17];
+      let mut stun_client = stun::StunClient::new(
+        udp.connect(
+          net_common::AddrPort { address: dst_ip, port: 19302 },None
+        ).await.unwrap(),
+        stun_transaction_id,
+      );
+      loop {
+        match stun_client.send(
+          net_common::AddrPort { address: dst_ip, port: 19302 }
+        ).await {
+          Ok(_) => {
+            log::info!("Sent STUN Binding Request to {}", dst_ip);
+          }
+          Err(e) => {
+            log::error!("Error sending STUN Binding Request: {}", e);
+            return;
+          }
+        }
+        tokio::select! {
+          _ = tokio::time::sleep(tokio::time::Duration::from_secs(3)) => {
+            log::error!("Error: No STUN response received within timeout");
+            continue;
+          },
+          x = stun_client.receive() => match x {
+            Ok((from, hdr, attrs)) => {
+              log::info!("Received STUN response from {}:{} {:?} {:?}", from,hdr.msg_type, hdr, attrs);
+              for attr in attrs.iter() {
+                if let Some(xor_mapped) = attr.xor_mapped_address() {
+                  let demapped = stun::demap_xor_address(stun_transaction_id, xor_mapped);
+                  log::info!("XOR-MAPPED-ADDRESS: {}:{}", net_common::Ipv4Address::new(
+                    demapped.address[0],
+                    demapped.address[1],
+                    demapped.address[2],
+                    demapped.address[3],
+                  ), demapped.port);
+                } else if let Some(mapped) = attr.mapped_address() {
+                  log::info!("MAPPED-ADDRESS: {}:{}", net_common::Ipv4Address::new(
+                    mapped.address[0],
+                    mapped.address[1],
+                    mapped.address[2],
+                    mapped.address[3],
+                  ), mapped.port);    
+                }
+              }
+            }
+            Err(e) => {
+              log::error!("Error receiving STUN response: {}", e);
+            },
+          }
+        };
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+      }
+    });
   }
   loop {
     // このループは、メインスレッドが終了しないようにするためのもの
