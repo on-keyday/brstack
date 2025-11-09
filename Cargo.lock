@@ -124,7 +124,9 @@ dependencies = [
  "if-addrs",
  "ipv4",
  "log",
+ "nat",
  "net_common",
+ "stun",
  "tokio",
  "udp",
 ]
@@ -296,6 +298,19 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "nat"
+version = "0.1.0"
+dependencies = [
+ "ethernet",
+ "ipv4",
+ "log",
+ "net_common",
+ "tcp",
+ "tokio",
+ "udp",
 ]
 
 [[package]]
@@ -475,6 +490,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "stun"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "net_common",
+ "tokio",
+ "udp",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -483,6 +508,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tcp"
+version = "0.1.0"
+dependencies = [
+ "ipv4",
+ "log",
+ "net_common",
+ "tokio",
 ]
 
 [[package]]

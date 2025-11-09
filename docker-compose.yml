@@ -13,18 +13,36 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: client
-      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.11
+      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.12
       DST: 10.0.2.13
     networks:
       net_client_r1:
         ipv4_address: 10.0.0.10
+  stun_client1:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
+    environment:
+      ROLE: stun_client
+      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.12
+      DST: 74.125.250.129
+    networks:
+      net_client_r1:
+        ipv4_address: 10.0.0.11
   client2:
     image: brstack_app:latest
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: client
       ROUTING: 10.0.1.0/24 0.0.0.0 0.0.0.0/0 10.0.1.11
@@ -37,6 +55,8 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: client
       ROUTING: 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.11
@@ -49,6 +69,8 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: client
       ROUTING: 10.0.3.0/24 0.0.0.0 0.0.0.0/0 10.0.3.11
@@ -61,12 +83,14 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: router
       ROUTING: 10.0.0.0/24 0.0.0.0 10.0.1.0/24 0.0.0.0 0.0.0.0/0 10.0.1.12
     networks:
       net_client_r1:
-        ipv4_address: 10.0.0.11
+        ipv4_address: 10.0.0.12
       net_r1_r2:
         ipv4_address: 10.0.1.11
   router2:
@@ -74,9 +98,12 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: router
-      ROUTING: 10.0.1.0/24 0.0.0.0 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.12
+      ROUTING: 10.0.1.0/24 0.0.0.0 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.12 10.0.0.0/24
+        10.0.1.11
     networks:
       net_r1_r2:
         ipv4_address: 10.0.1.12
@@ -87,9 +114,12 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: router
-      ROUTING: 10.0.2.0/24 0.0.0.0 10.0.3.0/24 0.0.0.0
+      ROUTING: 10.0.2.0/24 0.0.0.0 10.0.3.0/24 0.0.0.0 0.0.0.0/0 10.0.3.12 10.0.0.0/24
+        10.0.2.11 10.0.1.0/24 10.0.2.11
     networks:
       net_r2_server:
         ipv4_address: 10.0.2.12
@@ -100,27 +130,69 @@ services:
     cap_add:
     - NET_ADMIN
     - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: server
       ROUTING: 10.0.2.0/24 0.0.0.0 0.0.0.0/0 10.0.2.11
     networks:
       net_r2_server:
         ipv4_address: 10.0.2.13
+  nat_router:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
+    environment:
+      ROLE: nat_router
+      ROUTING: 10.0.3.0/24 0.0.0.0 10.0.4.0/24 0.0.0.0 0.0.0.0/0 10.0.4.1 10.0.2.0/24
+        10.0.3.11 10.0.1.0/24 10.0.3.11 10.0.0.0/24 10.0.3.11
+    networks:
+      net_r3_client:
+        ipv4_address: 10.0.3.12
+      external_net:
+        ipv4_address: 10.0.4.10
 networks:
   net_client_r1:
     ipam:
       config:
       - subnet: 10.0.0.0/24
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 0
+      com.docker.network.bridge.name: brstk1
+      com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   net_r1_r2:
     ipam:
       config:
       - subnet: 10.0.1.0/24
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 0
+      com.docker.network.bridge.name: brstk2
+      com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   net_r2_server:
     ipam:
       config:
       - subnet: 10.0.2.0/24
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 0
+      com.docker.network.bridge.name: brstk3
+      com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   net_r3_client:
     ipam:
       config:
       - subnet: 10.0.3.0/24
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 0
+      com.docker.network.bridge.name: brstk4
+      com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
+  external_net:
+    ipam:
+      config:
+      - subnet: 10.0.4.0/24
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 0
+      com.docker.network.bridge.name: brstk5
+      com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
 

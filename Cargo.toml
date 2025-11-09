@@ -39,5 +39,11 @@ icmp = { path = "protocol/icmp" }
 
 udp = { path = "protocol/udp" }
 
+tcp = { path = "protocol/tcp" }
+
+nat = { path = "protocol/nat" }
+
+stun = { path = "protocol/stun" }
+
 ## Common Definitions (Addresses, Constants,etc...)
 net_common = { path = "protocol/net_common" }

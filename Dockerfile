@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     nftables \
     tcpdump \
     procps \
+    trace-cmd \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./app/ /app/app/
@@ -22,6 +23,6 @@ RUN  cargo build
 RUN cp /app/target/debug/brstack /app/brstack
 COPY ./ruleset.txt /app/ruleset.txt
 COPY ./run.sh /app/run.sh
-ENV RUST_LOG=info,ipv4=debug
+ENV RUST_LOG=info,ipv4=debug,nat=debug
 ENV RUST_BACKTRACE=1
 CMD ["/app/run.sh"]
