@@ -2,7 +2,8 @@
 #[derive(Debug)]
 pub enum Error {
     PropertySetterError(&'static str),
-    IOError(&'static str, std::io::Error),
+    EncodeError(&'static str, std::io::Error),
+    DecodeError(&'static str, std::io::Error),
     TryFromIntError(std::num::TryFromIntError),
     ArrayLengthMismatch(&'static str,usize /*expected*/,usize /*actual*/),
     AssertError(&'static str),
@@ -13,7 +14,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::PropertySetterError(s) => write!(f, "PropertySetterError: {}", s),
-            Error::IOError(s,e) => write!(f, "IOError: {} {}", s,e),
+            Error::EncodeError(s,e) => write!(f, "EncodeError: {} {}", s,e),
+            Error::DecodeError(s,e) => write!(f, "DecodeError: {} {}", s,e),
             Error::TryFromIntError(e) => write!(f, "TryFromIntError: {}", e),
             Error::ArrayLengthMismatch(s,expected,actual) => write!(f, "ArrayLengthMismatch: {} expected:{} actual:{}", s,expected,actual),
             Error::AssertError(s) => write!(f, "AssertError: {}", s),
@@ -25,7 +27,8 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::IOError(_,e) => Some(e),
+            Error::EncodeError(_,e) => Some(e),
+            Error::DecodeError(_,e) => Some(e),
             Error::TryFromIntError(e) => Some(e),
             Error::PropertySetterError(_) => None,
             Error::ArrayLengthMismatch(_,_,_) => None,
@@ -58,141 +61,387 @@ pub enum NeighborCacheState {
 }
 impl std::fmt::Display for NeighborCacheState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self as usize {
-            0 => write!(f, "{}", "INCOMPLETE"),
-            1 => write!(f, "{}", "REACHABLE"),
-            2 => write!(f, "{}", "STALE"),
-            3 => write!(f, "{}", "DELAY"),
-            4 => write!(f, "{}", "PROBE"),
-            5 => write!(f, "{}", "FAILED"),
+        match *self {
+            NeighborCacheState::INCOMPLETE => write!(f, "{}", "INCOMPLETE"),
+            NeighborCacheState::REACHABLE => write!(f, "{}", "REACHABLE"),
+            NeighborCacheState::STALE => write!(f, "{}", "STALE"),
+            NeighborCacheState::DELAY => write!(f, "{}", "DELAY"),
+            NeighborCacheState::PROBE => write!(f, "{}", "PROBE"),
+            NeighborCacheState::FAILED => write!(f, "{}", "FAILED"),
             _ => write!(f, "NeighborCacheState({})",*self as usize),
+        }
+    }
+}
+impl std::convert::From<NeighborCacheState> for std::option::Option<&str> {
+    fn from(e: NeighborCacheState) -> Self {
+        match e {
+            NeighborCacheState::INCOMPLETE => Some("INCOMPLETE"),
+            NeighborCacheState::REACHABLE => Some("REACHABLE"),
+            NeighborCacheState::STALE => Some("STALE"),
+            NeighborCacheState::DELAY => Some("DELAY"),
+            NeighborCacheState::PROBE => Some("PROBE"),
+            NeighborCacheState::FAILED => Some("FAILED"),
+            _ =>  None,
         }
     }
 }
 impl NeighborCacheState {
     pub fn is_known(&self) -> bool {
-        match *self as usize {
-            0 => true,
-            1 => true,
-            2 => true,
-            3 => true,
-            4 => true,
-            5 => true,
+        match *self {
+            NeighborCacheState::INCOMPLETE => true,
+            NeighborCacheState::REACHABLE => true,
+            NeighborCacheState::STALE => true,
+            NeighborCacheState::DELAY => true,
+            NeighborCacheState::PROBE => true,
+            NeighborCacheState::FAILED => true,
             _ => false,
         }
     }
 }
 /* Unimplemented op: IMMEDIATE_STRING */
 #[derive(Debug,Default, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum ICMPv4DstUnreachableCode {
-    #[default]
-    net_unreachable = 0,
-    host_unreachable = 1,
-    protocol_unreachable = 2,
-    port_unreachable = 3,
-    fragmentation_needed_but_df_set = 4,
-    source_route_failed = 5,
-    network_unknown = 6,
-    host_unknown = 7,
-    network_prohibited = 8,
-    host_prohibited = 9,
-    TOS_network_unreachable = 10,
-    TOS_host_unreachable = 11,
-    communication_prohibited = 12,
-    host_precedence_violation = 13,
-    precedence_cutoff = 14,
+#[repr(transparent)]
+pub struct ICMPv4DstUnreachableCode(u8);
+impl ICMPv4DstUnreachableCode  {
+    pub const net_unreachable:Self = Self(0);
+    pub const host_unreachable:Self = Self(1);
+    pub const protocol_unreachable:Self = Self(2);
+    pub const port_unreachable:Self = Self(3);
+    pub const fragmentation_needed_but_df_set:Self = Self(4);
+    pub const source_route_failed:Self = Self(5);
+    pub const network_unknown:Self = Self(6);
+    pub const host_unknown:Self = Self(7);
+    pub const network_prohibited:Self = Self(8);
+    pub const host_prohibited:Self = Self(9);
+    pub const TOS_network_unreachable:Self = Self(10);
+    pub const TOS_host_unreachable:Self = Self(11);
+    pub const communication_prohibited:Self = Self(12);
+    pub const host_precedence_violation:Self = Self(13);
+    pub const precedence_cutoff:Self = Self(14);
 }
 impl std::fmt::Display for ICMPv4DstUnreachableCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self as u8 {
-            0 => write!(f, "{}", "net_unreachable"),
-            1 => write!(f, "{}", "host_unreachable"),
-            2 => write!(f, "{}", "protocol_unreachable"),
-            3 => write!(f, "{}", "port_unreachable"),
-            4 => write!(f, "{}", "fragmentation_needed_but_df_set"),
-            5 => write!(f, "{}", "source_route_failed"),
-            6 => write!(f, "{}", "network_unknown"),
-            7 => write!(f, "{}", "host_unknown"),
-            8 => write!(f, "{}", "network_prohibited"),
-            9 => write!(f, "{}", "host_prohibited"),
-            10 => write!(f, "{}", "TOS_network_unreachable"),
-            11 => write!(f, "{}", "TOS_host_unreachable"),
-            12 => write!(f, "{}", "communication_prohibited"),
-            13 => write!(f, "{}", "host_precedence_violation"),
-            14 => write!(f, "{}", "precedence_cutoff"),
-            _ => write!(f, "ICMPv4DstUnreachableCode({})",*self as u8),
+        match *self {
+            ICMPv4DstUnreachableCode::net_unreachable => write!(f, "{}", "net_unreachable"),
+            ICMPv4DstUnreachableCode::host_unreachable => write!(f, "{}", "host_unreachable"),
+            ICMPv4DstUnreachableCode::protocol_unreachable => write!(f, "{}", "protocol_unreachable"),
+            ICMPv4DstUnreachableCode::port_unreachable => write!(f, "{}", "port_unreachable"),
+            ICMPv4DstUnreachableCode::fragmentation_needed_but_df_set => write!(f, "{}", "fragmentation_needed_but_df_set"),
+            ICMPv4DstUnreachableCode::source_route_failed => write!(f, "{}", "source_route_failed"),
+            ICMPv4DstUnreachableCode::network_unknown => write!(f, "{}", "network_unknown"),
+            ICMPv4DstUnreachableCode::host_unknown => write!(f, "{}", "host_unknown"),
+            ICMPv4DstUnreachableCode::network_prohibited => write!(f, "{}", "network_prohibited"),
+            ICMPv4DstUnreachableCode::host_prohibited => write!(f, "{}", "host_prohibited"),
+            ICMPv4DstUnreachableCode::TOS_network_unreachable => write!(f, "{}", "TOS_network_unreachable"),
+            ICMPv4DstUnreachableCode::TOS_host_unreachable => write!(f, "{}", "TOS_host_unreachable"),
+            ICMPv4DstUnreachableCode::communication_prohibited => write!(f, "{}", "communication_prohibited"),
+            ICMPv4DstUnreachableCode::host_precedence_violation => write!(f, "{}", "host_precedence_violation"),
+            ICMPv4DstUnreachableCode::precedence_cutoff => write!(f, "{}", "precedence_cutoff"),
+            _ => write!(f, "ICMPv4DstUnreachableCode({})",self.0),
+        }
+    }
+}
+impl std::convert::From<ICMPv4DstUnreachableCode> for std::option::Option<&str> {
+    fn from(e: ICMPv4DstUnreachableCode) -> Self {
+        match e {
+            ICMPv4DstUnreachableCode::net_unreachable => Some("net_unreachable"),
+            ICMPv4DstUnreachableCode::host_unreachable => Some("host_unreachable"),
+            ICMPv4DstUnreachableCode::protocol_unreachable => Some("protocol_unreachable"),
+            ICMPv4DstUnreachableCode::port_unreachable => Some("port_unreachable"),
+            ICMPv4DstUnreachableCode::fragmentation_needed_but_df_set => Some("fragmentation_needed_but_df_set"),
+            ICMPv4DstUnreachableCode::source_route_failed => Some("source_route_failed"),
+            ICMPv4DstUnreachableCode::network_unknown => Some("network_unknown"),
+            ICMPv4DstUnreachableCode::host_unknown => Some("host_unknown"),
+            ICMPv4DstUnreachableCode::network_prohibited => Some("network_prohibited"),
+            ICMPv4DstUnreachableCode::host_prohibited => Some("host_prohibited"),
+            ICMPv4DstUnreachableCode::TOS_network_unreachable => Some("TOS_network_unreachable"),
+            ICMPv4DstUnreachableCode::TOS_host_unreachable => Some("TOS_host_unreachable"),
+            ICMPv4DstUnreachableCode::communication_prohibited => Some("communication_prohibited"),
+            ICMPv4DstUnreachableCode::host_precedence_violation => Some("host_precedence_violation"),
+            ICMPv4DstUnreachableCode::precedence_cutoff => Some("precedence_cutoff"),
+            _ =>  None,
         }
     }
 }
 impl ICMPv4DstUnreachableCode {
     pub fn is_known(&self) -> bool {
-        match *self as u8 {
-            0 => true,
-            1 => true,
-            2 => true,
-            3 => true,
-            4 => true,
-            5 => true,
-            6 => true,
-            7 => true,
-            8 => true,
-            9 => true,
-            10 => true,
-            11 => true,
-            12 => true,
-            13 => true,
-            14 => true,
+        match *self {
+            ICMPv4DstUnreachableCode::net_unreachable => true,
+            ICMPv4DstUnreachableCode::host_unreachable => true,
+            ICMPv4DstUnreachableCode::protocol_unreachable => true,
+            ICMPv4DstUnreachableCode::port_unreachable => true,
+            ICMPv4DstUnreachableCode::fragmentation_needed_but_df_set => true,
+            ICMPv4DstUnreachableCode::source_route_failed => true,
+            ICMPv4DstUnreachableCode::network_unknown => true,
+            ICMPv4DstUnreachableCode::host_unknown => true,
+            ICMPv4DstUnreachableCode::network_prohibited => true,
+            ICMPv4DstUnreachableCode::host_prohibited => true,
+            ICMPv4DstUnreachableCode::TOS_network_unreachable => true,
+            ICMPv4DstUnreachableCode::TOS_host_unreachable => true,
+            ICMPv4DstUnreachableCode::communication_prohibited => true,
+            ICMPv4DstUnreachableCode::host_precedence_violation => true,
+            ICMPv4DstUnreachableCode::precedence_cutoff => true,
             _ => false,
         }
     }
 }
 impl std::convert::From<u8> for ICMPv4DstUnreachableCode {
     fn from(e: u8) -> Self {
-        unsafe { std::mem::transmute(e) }
+        Self(e)
     }
 }
 impl std::convert::From<ICMPv4DstUnreachableCode> for u8 {
     fn from(e: ICMPv4DstUnreachableCode) -> Self {
-        unsafe { std::mem::transmute(e) }
+        e.0
     }
 }
 #[derive(Debug,Default, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum ICMPv4TimeExceededCode {
-    #[default]
-    ttl_exceeded_in_transit = 0,
-    fragment_reassembly_time_exceeded = 1,
+#[repr(transparent)]
+pub struct ICMPv4TimeExceededCode(u8);
+impl ICMPv4TimeExceededCode  {
+    pub const ttl_exceeded_in_transit:Self = Self(0);
+    pub const fragment_reassembly_time_exceeded:Self = Self(1);
 }
 impl std::fmt::Display for ICMPv4TimeExceededCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self as u8 {
-            0 => write!(f, "{}", "ttl_exceeded_in_transit"),
-            1 => write!(f, "{}", "fragment_reassembly_time_exceeded"),
-            _ => write!(f, "ICMPv4TimeExceededCode({})",*self as u8),
+        match *self {
+            ICMPv4TimeExceededCode::ttl_exceeded_in_transit => write!(f, "{}", "ttl_exceeded_in_transit"),
+            ICMPv4TimeExceededCode::fragment_reassembly_time_exceeded => write!(f, "{}", "fragment_reassembly_time_exceeded"),
+            _ => write!(f, "ICMPv4TimeExceededCode({})",self.0),
+        }
+    }
+}
+impl std::convert::From<ICMPv4TimeExceededCode> for std::option::Option<&str> {
+    fn from(e: ICMPv4TimeExceededCode) -> Self {
+        match e {
+            ICMPv4TimeExceededCode::ttl_exceeded_in_transit => Some("ttl_exceeded_in_transit"),
+            ICMPv4TimeExceededCode::fragment_reassembly_time_exceeded => Some("fragment_reassembly_time_exceeded"),
+            _ =>  None,
         }
     }
 }
 impl ICMPv4TimeExceededCode {
     pub fn is_known(&self) -> bool {
-        match *self as u8 {
-            0 => true,
-            1 => true,
+        match *self {
+            ICMPv4TimeExceededCode::ttl_exceeded_in_transit => true,
+            ICMPv4TimeExceededCode::fragment_reassembly_time_exceeded => true,
             _ => false,
         }
     }
 }
 impl std::convert::From<u8> for ICMPv4TimeExceededCode {
     fn from(e: u8) -> Self {
-        unsafe { std::mem::transmute(e) }
+        Self(e)
     }
 }
 impl std::convert::From<ICMPv4TimeExceededCode> for u8 {
     fn from(e: ICMPv4TimeExceededCode) -> Self {
-        unsafe { std::mem::transmute(e) }
+        e.0
     }
 }
+#[derive(Debug,Default, Clone, Copy, PartialEq, Eq)]
+pub enum TCPState {
+    #[default]
+    CLOSED = 0,
+    LISTEN = 1,
+    SYN_SENT = 2,
+    SYN_RCVD = 3,
+    ESTABLISHED = 4,
+    FIN_WAIT_1 = 5,
+    FIN_WAIT_2 = 6,
+    CLOSE_WAIT = 7,
+    CLOSING = 8,
+    LAST_ACK = 9,
+    TIME_WAIT = 10,
+}
+impl std::fmt::Display for TCPState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            TCPState::CLOSED => write!(f, "{}", "CLOSED"),
+            TCPState::LISTEN => write!(f, "{}", "LISTEN"),
+            TCPState::SYN_SENT => write!(f, "{}", "SYN_SENT"),
+            TCPState::SYN_RCVD => write!(f, "{}", "SYN_RCVD"),
+            TCPState::ESTABLISHED => write!(f, "{}", "ESTABLISHED"),
+            TCPState::FIN_WAIT_1 => write!(f, "{}", "FIN_WAIT_1"),
+            TCPState::FIN_WAIT_2 => write!(f, "{}", "FIN_WAIT_2"),
+            TCPState::CLOSE_WAIT => write!(f, "{}", "CLOSE_WAIT"),
+            TCPState::CLOSING => write!(f, "{}", "CLOSING"),
+            TCPState::LAST_ACK => write!(f, "{}", "LAST_ACK"),
+            TCPState::TIME_WAIT => write!(f, "{}", "TIME_WAIT"),
+            _ => write!(f, "TCPState({})",*self as usize),
+        }
+    }
+}
+impl std::convert::From<TCPState> for std::option::Option<&str> {
+    fn from(e: TCPState) -> Self {
+        match e {
+            TCPState::CLOSED => Some("CLOSED"),
+            TCPState::LISTEN => Some("LISTEN"),
+            TCPState::SYN_SENT => Some("SYN_SENT"),
+            TCPState::SYN_RCVD => Some("SYN_RCVD"),
+            TCPState::ESTABLISHED => Some("ESTABLISHED"),
+            TCPState::FIN_WAIT_1 => Some("FIN_WAIT_1"),
+            TCPState::FIN_WAIT_2 => Some("FIN_WAIT_2"),
+            TCPState::CLOSE_WAIT => Some("CLOSE_WAIT"),
+            TCPState::CLOSING => Some("CLOSING"),
+            TCPState::LAST_ACK => Some("LAST_ACK"),
+            TCPState::TIME_WAIT => Some("TIME_WAIT"),
+            _ =>  None,
+        }
+    }
+}
+impl TCPState {
+    pub fn is_known(&self) -> bool {
+        match *self {
+            TCPState::CLOSED => true,
+            TCPState::LISTEN => true,
+            TCPState::SYN_SENT => true,
+            TCPState::SYN_RCVD => true,
+            TCPState::ESTABLISHED => true,
+            TCPState::FIN_WAIT_1 => true,
+            TCPState::FIN_WAIT_2 => true,
+            TCPState::CLOSE_WAIT => true,
+            TCPState::CLOSING => true,
+            TCPState::LAST_ACK => true,
+            TCPState::TIME_WAIT => true,
+            _ => false,
+        }
+    }
+}
+/* Unimplemented op: DECLARE_FORMAT */
 /* Unimplemented op: IMMEDIATE_STRING */
 /* Unimplemented op: METADATA */
 /* Unimplemented op: IMMEDIATE_STRING */
 /* Unimplemented op: METADATA */
+#[derive(Debug,Default, Clone, PartialEq, Eq)]
+pub struct TransportPorts<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+    /* Unimplemented op: DEFINE_ENCODER */
+    /* Unimplemented op: DEFINE_DECODER */
+    pub src_port: u16,
+    pub dst_port: u16,
+}
+/* Unimplemented op: ENCODER_PARAMETER */
+/* Unimplemented op: RETURN_TYPE */
+/* Unimplemented op: DEFINE_FALLBACK */
+/* Unimplemented op: END_FALLBACK */
+/* Unimplemented op: DEFINE_FALLBACK */
+/* Unimplemented op: END_FALLBACK */
+impl <'a>TransportPorts<'a> {
+    pub fn encode_to_vec(&self) -> std::result::Result<Vec<u8>, Error> {
+        let mut w = std::io::Cursor::new(Vec::new());
+        self.encode(&mut w
+        )?;
+        Ok(w.into_inner())
+    }
+    pub fn encode_to_fixed<'b>(&self, data: &'b mut [u8]) -> std::result::Result<&'b [u8], Error> {
+        let mut w = std::io::Cursor::new(&mut *data);
+        self.encode(&mut w
+        )?;
+        let written = w.position() as usize;
+        drop(w);
+        Ok(&data[0..written])
+    }
+    pub fn encode<W: std::io::Write>(&self, w :&mut W) -> std::result::Result<(), Error> {
+        let mut tmp69 = <[u8; 2]>::default();
+        let mut tmp71 = 0;
+        while((tmp71 < 2)) {
+            (tmp69)[tmp71 as usize] = (((self.src_port >> ((1 - tmp71) * 8)) & 255) as u8);
+            tmp71+= 1;
+        }
+        w.write_all(&tmp69[0..2 as usize]).map_err(|e| Error::EncodeError("TransportPorts::src_port",e))?;
+        let mut tmp83 = <[u8; 2]>::default();
+        let mut tmp84 = 0;
+        while((tmp84 < 2)) {
+            (tmp83)[tmp84 as usize] = (((self.dst_port >> ((1 - tmp84) * 8)) & 255) as u8);
+            tmp84+= 1;
+        }
+        w.write_all(&tmp83[0..2 as usize]).map_err(|e| Error::EncodeError("TransportPorts::dst_port",e))?;
+        return Ok(());
+    }
+}
+/* Unimplemented op: DECODER_PARAMETER */
+/* Unimplemented op: RETURN_TYPE */
+/* Unimplemented op: DEFINE_FALLBACK */
+/* Unimplemented op: END_FALLBACK */
+/* Unimplemented op: DEFINE_FALLBACK */
+/* Unimplemented op: END_FALLBACK */
+/* Unimplemented op: DECODER_PARAMETER */
+/* Unimplemented op: RETURN_TYPE */
+/* Unimplemented op: DEFINE_FALLBACK */
+/* Unimplemented op: END_FALLBACK */
+/* Unimplemented op: DEFINE_FALLBACK */
+/* Unimplemented op: END_FALLBACK */
+impl <'a>TransportPorts<'a> {
+    pub fn decode_slice<'b>(data :&'b [u8]) -> Result<(Self,&'b [u8]), Error> {
+        let mut r = std::io::Cursor::new(data);
+        let mut result = Self::default();
+        result.decode(&mut r)?;
+        Ok((result,&data[r.position() as usize..]))
+    }
+    pub fn decode_exact(data :&[u8]) -> Result<Self, Error> {
+        let (result,rest) = Self::decode_slice(data)?;
+        if rest.len() > 0 {
+        return Err(Error::AssertError("Unexpected data"));
+        }
+        Ok(result)
+    }
+    pub fn decode<R: std::io::Read>(&mut self, r :&mut R) -> std::result::Result<(), Error> {
+        let mut tmp95 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp95[0..2 as usize]).map_err(|e| Error::DecodeError("TransportPorts::src_port",e))?;
+        let mut tmp96 = 0;
+        while((tmp96 < 2)) {
+            self.src_port = (self.src_port | (((tmp95)[tmp96 as usize] as u16) << ((1 - tmp96) * 8)));
+            tmp96+= 1;
+        }
+        let mut tmp107 = <[u8; 2]>::default();
+        r.read_exact(&mut tmp107[0..2 as usize]).map_err(|e| Error::DecodeError("TransportPorts::dst_port",e))?;
+        let mut tmp108 = 0;
+        while((tmp108 < 2)) {
+            self.dst_port = (self.dst_port | (((tmp107)[tmp108 as usize] as u16) << ((1 - tmp108) * 8)));
+            tmp108+= 1;
+        }
+        return Ok(());
+    }
+}
+impl <'a>TransportPorts<'a> {
+    pub fn decode_slice_direct(data :&'a [u8]) -> Result<(Self,&'a [u8]), Error> {
+        let mut result = Self::default();
+        let mut offset = 0;
+        result.decode_direct(data,&mut offset
+        )?;
+        Ok((result,&data[offset..]))
+    }
+    pub fn decode_exact_direct(data :&'a [u8]) -> Result<Self, Error> {
+        let (result,rest) = Self::decode_slice_direct(data)?;
+        if rest.len() > 0 {
+        return Err(Error::AssertError("Unexpected data"));
+        }
+        Ok(result)
+    }
+    pub fn decode_direct(&mut self, r :&'a [u8], offset :&mut usize) -> std::result::Result<(), Error> {
+        let mut tmp95 = <[u8; 2]>::default();
+        if *offset + 2 as usize > r.len() {
+        return Err(Error::DecodeError("TransportPorts::src_port",std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Unexpected end of input")));
+        }
+        tmp95.copy_from_slice(&r[*offset..(*offset + 2 as usize)]);
+        *offset += 2 as usize;
+        let mut tmp96 = 0;
+        while((tmp96 < 2)) {
+            self.src_port = (self.src_port | (((tmp95)[tmp96 as usize] as u16) << ((1 - tmp96) * 8)));
+            tmp96+= 1;
+        }
+        let mut tmp107 = <[u8; 2]>::default();
+        if *offset + 2 as usize > r.len() {
+        return Err(Error::DecodeError("TransportPorts::dst_port",std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Unexpected end of input")));
+        }
+        tmp107.copy_from_slice(&r[*offset..(*offset + 2 as usize)]);
+        *offset += 2 as usize;
+        let mut tmp108 = 0;
+        while((tmp108 < 2)) {
+            self.dst_port = (self.dst_port | (((tmp107)[tmp108 as usize] as u16) << ((1 - tmp108) * 8)));
+            tmp108+= 1;
+        }
+        return Ok(());
+    }
+}

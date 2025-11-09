@@ -177,3 +177,5 @@ mod enums;
 pub use enums::NeighborCacheState;
 pub use enums::ICMPv4DstUnreachableCode;
 pub use enums::ICMPv4TimeExceededCode;
+pub use enums::TransportPorts;
+pub use enums::Error;
