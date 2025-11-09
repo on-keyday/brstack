@@ -51,7 +51,7 @@ def find_default_gateway_ip_for_host(node_name, node, node_configs_map, node_ips
     explicit_gw_router_name = node.get('default_gateway_router')
     if explicit_gw_router_name:
         gw_router_node = node_configs_map.get(explicit_gw_router_name)
-        if not gw_router_node or gw_router_node.get('role') != 'router':
+        if not gw_router_node or (gw_router_node.get('role') != 'router' and gw_router_node.get('role') != 'nat_router'):
             print(f"Warning: Node '{node_name}' specifies non-existent or non-router default_gateway_router '{explicit_gw_router_name}'. Falling back to auto-detection.", file=sys.stderr)
         else:
             gw_router_connected_nets = [conn['network'] for conn in gw_router_node.get('connections', [])]
@@ -67,7 +67,7 @@ def find_default_gateway_ip_for_host(node_name, node, node_configs_map, node_ips
 
     router_ip_on_net = None
     for other_node_name, other_node in node_configs_map.items():
-        if other_node.get('role') == 'router':
+        if other_node.get('role') == 'router' or other_node.get('role') == 'nat_router':
             if primary_connected_network_name in node_ips.get(other_node_name, {}):
                 router_ip_on_net = node_ips[other_node_name][primary_connected_network_name]
                 return router_ip_on_net
@@ -101,7 +101,7 @@ def generate_routing_info(node_name, node, node_configs_map, network_subnets, no
 
     # Add Default Route (0.0.0.0/0 <router_ip_on_local_net>) for Client/Server
     # ただし、static_routesで明示的にデフォルトルートが設定されている場合は追加しない
-    if (role == 'client' or role == 'server') and not has_explicit_default_route:
+    if (role.endswith('client') or role.endswith('server')) and not has_explicit_default_route:
         default_gw_ip = find_default_gateway_ip_for_host(node_name, node, node_configs_map, node_ips, network_subnets)
         if default_gw_ip:
             routing_entries.append(f"0.0.0.0/0 {default_gw_ip}")
@@ -168,7 +168,7 @@ def generate_routing_info(node_name, node, node_configs_map, network_subnets, no
 def generate_client_dest_ip(node_name, node, node_configs_map, node_ips):
     """Generates the DEST IP address for a client node."""
     role = node.get('role')
-    if role != 'client':
+    if role != 'client' and role != 'stun_client':
         return None
 
     dest_server_name = node.get('dest_server')
@@ -178,8 +178,8 @@ def generate_client_dest_ip(node_name, node, node_configs_map, node_ips):
 
     target_server_node = node_configs_map.get(dest_server_name)
     if not target_server_node:
-        print(f"Warning: Target server '{dest_server_name}' for client '{node_name}' is not defined in nodes. DEST will not be set.", file=sys.stderr)
-        return None
+        return dest_server_name
+
 
     server_connections = list(target_server_node.get('connections', []))
     if not server_connections:
@@ -222,12 +222,26 @@ def generate_docker_compose(config, network_subnets, node_ips, node_configs_map,
     # config.get('networks', [])はネットワーク名のリストではなく、ネットワーク定義のリストであることに注意
     network_definitions_from_config = {net['name']: net for net in config.get('networks', [])}
 
+    network_name_prefix= "brstk"
+    index = 1
+
+    all_names = [f"{network_name_prefix}{i}" for i in range(1, len(network_subnets)+1)]
+
     for net_name, subnet in network_subnets.items():
+        bridge_name = f"{network_name_prefix}{index}"
+        index += 1
         network_definition = {
             'ipam': {
                 'config': [
                     {'subnet': subnet}
                 ]
+            },
+            'driver_opts': {
+                "com.docker.network.bridge.enable_ip_masquerade": 0,
+                "com.docker.network.bridge.name": bridge_name,
+                # from https://github.com/moby/moby/blob/ada61040e00f25ab7c326561159cf59090d7d2a3/daemon/libnetwork/drivers/bridge/labels.go#L29
+                # from https://github.com/moby/moby/blob/ada61040e00f25ab7c326561159cf59090d7d2a3/daemon/libnetwork/drivers/bridge/bridge_linux.go#L369
+                "com.docker.network.bridge.trusted_host_interfaces": ':'.join(all_names)
             }
         }
         
@@ -236,9 +250,7 @@ def generate_docker_compose(config, network_subnets, node_ips, node_configs_map,
         if config_net and 'mtu' in config_net:
             mtu_value = config_net['mtu']
             if isinstance(mtu_value, int) and mtu_value > 0:
-                network_definition['driver_opts'] = {
-                    'com.docker.network.driver.mtu': str(mtu_value)
-                }
+                network_definition['driver_opts']['com.docker.network.driver.mtu'] = str(mtu_value)
             else:
                 print(f"Warning: Invalid MTU value '{mtu_value}' for network '{net_name}'. MTU must be a positive integer. Skipping MTU setting for this network.", file=sys.stderr)
 
@@ -247,9 +259,14 @@ def generate_docker_compose(config, network_subnets, node_ips, node_configs_map,
 
     for node_name, node in node_configs_map.items():
         role = node.get('role')
+        if role == "external_host":
+            continue  # 外部ホストはサービスとして生成しない
         service_definition = {
             'image': 'brstack_app:latest',
             'cap_add': ['NET_ADMIN', 'NET_RAW'],
+            "sysctls": {
+                "net.bridge.bridge-nf-call-iptables": "0",
+            },
             'environment': {'ROLE': role},
             'networks': {}
         }
@@ -270,7 +287,7 @@ def generate_docker_compose(config, network_subnets, node_ips, node_configs_map,
         routing_string = service_routing_info.get(node_name, "")
         service_definition['environment']['ROUTING'] = routing_string
 
-        if role == 'client':
+        if role.endswith('client'):
             dest_ip = client_dest_info.get(node_name)
             if dest_ip:
                 service_definition['environment']['DST'] = dest_ip
@@ -299,7 +316,13 @@ def generate_dot(config, network_subnets, node_ips, node_configs_map, service_ro
         role = node.get('role', 'unknown')
         shape = 'box'
         color = 'lightblue'
-        if role == 'router':
+        if role == 'nat_router':
+            shape = 'diamond'
+            color = 'pink'
+        elif role == 'external_host':
+            shape = 'box3d'
+            color = 'lightgrey' 
+        elif role == 'router':
             shape = 'diamond'
             color = 'orange'
         elif role == 'server':
@@ -308,6 +331,9 @@ def generate_dot(config, network_subnets, node_ips, node_configs_map, service_ro
         elif role == 'client':
             shape = 'ellipse'
             color = 'yellow'
+        elif role == 'stun_client':
+            shape = 'ellipse'
+            color = 'violet'
 
         safe_node_name = node_name.replace('-', '_')
 
@@ -315,7 +341,7 @@ def generate_dot(config, network_subnets, node_ips, node_configs_map, service_ro
         label_lines = [f"{node_name}\\n({role})"]
 
         # Add DEST info for clients
-        if role == 'client':
+        if role.endswith('client'):
             dest_ip = client_dest_info.get(node_name)
             if dest_ip:
                 label_lines.append(f"Dest: {dest_ip}")
@@ -323,7 +349,7 @@ def generate_dot(config, network_subnets, node_ips, node_configs_map, service_ro
 
         # Add a separator line if DEST was added OR if there's routing info
         routing_string = service_routing_info.get(node_name, "")
-        has_dest_info = role == 'client' and client_dest_info.get(node_name) is not None
+        has_dest_info = client_dest_info.get(node_name) is not None
         has_routing_entries = bool(routing_string)
         if has_dest_info or has_routing_entries:
             label_lines.append("")
@@ -418,20 +444,32 @@ if __name__ == "__main__":
                 current_suffix_start = assigned_ips[net_name]
                 found = False
 
-                for suffix in range(current_suffix_start, 255):
-                    potential_ip_str = f"{prefix}.{suffix}"
-                    try:
-                        ip_obj = ipaddress.ip_address(potential_ip_str)
-                        if ip_obj in net_obj and ip_obj != net_obj.network_address and ip_obj != net_obj.broadcast_address:
-                            assigned_ip = potential_ip_str
-                            assigned_ips[net_name] = suffix + 1
-                            found = True
-                            break
-                    except ValueError:
-                        pass
+                role = node.get('role')
+                if role == 'external_host':
+                    current_suffix_start = 1  # 外部ホストはサブネットの最初のIPを使用(Dockerの外部接続用)
+                    potential_ip_str = f"{prefix}.{current_suffix_start}"
+                    ip_obj = ipaddress.ip_address(potential_ip_str)
+                    if ip_obj in net_obj and ip_obj != net_obj.network_address and ip_obj != net_obj.broadcast_address:
+                        assigned_ip = potential_ip_str
+                        assigned_ips[net_name] = current_suffix_start + 1
+                        found = True
+                    else:
+                        raise ValueError(f"Cannot assign IP {potential_ip_str} to external_host '{node_name}' on network '{net_name}'.")
+                else:
+                    for suffix in range(current_suffix_start, 255):
+                        potential_ip_str = f"{prefix}.{suffix}"
+                        try:
+                            ip_obj = ipaddress.ip_address(potential_ip_str)
+                            if ip_obj in net_obj and ip_obj != net_obj.network_address and ip_obj != net_obj.broadcast_address:
+                                assigned_ip = potential_ip_str
+                                assigned_ips[net_name] = suffix + 1
+                                found = True
+                                break
+                        except ValueError:
+                            pass
 
-                if not found:
-                    raise ValueError(f"Ran out of assignable IPs in subnet {subnet} for network {net_name} starting from suffix {current_suffix_start}.")
+                    if not found:
+                        raise ValueError(f"Ran out of assignable IPs in subnet {subnet} for network {net_name} starting from suffix {current_suffix_start}.")
 
                 node_ips[node_name][net_name] = assigned_ip
 
@@ -444,7 +482,7 @@ if __name__ == "__main__":
             service_routing_info[node_name] = generate_routing_info(node_name, node, node_configs_map, network_subnets, node_ips)
 
             # クライアントの場合はDEST情報も生成
-            if node.get('role') == 'client':
+            if node.get('role').endswith('client'):
                 dest_ip = generate_client_dest_ip(node_name, node, node_configs_map, node_ips)
                 if dest_ip:
                     client_dest_info[node_name] = dest_ip

@@ -11,6 +11,9 @@
         },
         {
             "name": "net_r3_client"
+        },
+        {
+            "name": "external_net"
         }
     ],
     "nodes": [
@@ -23,6 +26,16 @@
                 }
             ],
             "dest_server": "server1"
+        },
+        {
+            "name": "stun_client1",
+            "role": "stun_client",
+            "connections": [
+                {
+                    "network": "net_client_r1"
+                }
+            ],
+            "dest_server": "74.125.250.129"
         },
         {
             "name": "client2",
@@ -87,6 +100,10 @@
                 {
                     "target_network": "default",
                     "next_hop_node": "router3"
+                },
+                {
+                    "target_network": "net_client_r1",
+                    "next_hop_node": "router1"
                 }
             ]
         },
@@ -102,6 +119,18 @@
                 }
             ],
             "static_routes": [
+                {
+                    "target_network": "default",
+                    "next_hop_node": "nat_router"
+                },
+                {
+                    "target_network": "net_client_r1",
+                    "next_hop_node": "router2"
+                },
+                {
+                    "target_network": "net_r1_r2",
+                    "next_hop_node": "router2"
+                }
             ]
         },
         {
@@ -116,6 +145,45 @@
                 {
                     "target_network": "default",
                     "next_hop_node": "router2"
+                }
+            ]
+        },
+        {
+            "name": "nat_router",
+            "role": "nat_router",
+            "connections": [
+                {
+                    "network": "net_r3_client"
+                },
+                {
+                    "network": "external_net"
+                }
+            ],
+            "static_routes": [
+                {
+                    "target_network": "default",
+                    "next_hop_node": "external"                
+                },
+                {
+                    "target_network": "net_r2_server",
+                    "next_hop_node": "router3"
+                },
+                {
+                    "target_network": "net_r1_r2",
+                    "next_hop_node": "router3"
+                },
+                {
+                    "target_network": "net_client_r1",
+                    "next_hop_node": "router3"
+                }
+            ]
+        },
+        {
+            "name": "external",
+            "role": "external_host",
+            "connections": [
+                {
+                    "network": "external_net"
                 }
             ]
         }
