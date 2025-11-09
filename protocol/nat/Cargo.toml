@@ -1,0 +1,26 @@
+[package]
+name = "nat"
+version = "0.1.0"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+include.workspace = true
+keywords.workspace = true
+license.workspace = true
+publish.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+net_common = { path = "../net_common" }
+tokio = { version = "1", features = ["full"] }
+ipv4 = { path = "../ipv4" }
+tcp = {path = "../tcp"}
+udp = {path = "../udp"}
+ethernet = { path = "../ethernet" }
+log = "0.4.25"
