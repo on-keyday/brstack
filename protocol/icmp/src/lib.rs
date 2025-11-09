@@ -10,7 +10,7 @@ pub struct ICMPService {
 }
 
 impl ICMPService {
-    pub fn new(ipv4: ipv4::Router) -> Self {
+    pub fn register(ipv4: ipv4::Router) -> Self {
         ipv4.register_protocol(ipv4::packet::ProtocolNumber::ICMP, Box::new(
             ICMPService{
                 ipv4: ipv4.clone(),
@@ -32,10 +32,11 @@ impl ICMPService {
         let checksum_target = packet.encode_to_fixed(&mut buffer)?;
         packet.header.checksum = ipv4::packet::checkSum(std::borrow::Cow::Borrowed(&checksum_target));
         let final_encoded = packet.encode_to_fixed(&mut buffer)?;
+        let len = final_encoded.len();
         self.ipv4.send(
             ipv4::packet::ProtocolNumber::ICMP,
             dst_addr,
-            final_encoded,
+        &mut buffer[..len],
         ).await?;
         Ok(())
     }
