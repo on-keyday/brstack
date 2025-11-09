@@ -261,7 +261,8 @@ impl UDPHub {
         let checksum = udp_checksum(&data, src_ip_addr, tuple.dst.address);
         data[6] = (checksum >> 8) as u8; // checksumの上位バイト
         data[7] = (checksum & 0xff) as u8; // checksumの下位バイト
-        self.state.ipv4.send(ipv4::packet::ProtocolNumber::UDP,tuple.dst.address, &data).await?;
+        log::info!("checksum calculated: {:04x}", checksum);
+        self.state.ipv4.send(ipv4::packet::ProtocolNumber::UDP,tuple.dst.address, &mut data).await?;
         Ok(())
     }
 
