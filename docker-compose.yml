@@ -17,7 +17,7 @@ services:
       net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: client
-      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.12
+      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.13
       DST: 10.0.2.13
     networks:
       net_client_r1:
@@ -31,11 +31,25 @@ services:
       net.bridge.bridge-nf-call-iptables: '0'
     environment:
       ROLE: stun_client
-      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.12
+      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.13
       DST: 74.125.250.129
     networks:
       net_client_r1:
         ipv4_address: 10.0.0.11
+  ntp_client1:
+    image: brstack_app:latest
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    sysctls:
+      net.bridge.bridge-nf-call-iptables: '0'
+    environment:
+      ROLE: ntp_client
+      ROUTING: 10.0.0.0/24 0.0.0.0 0.0.0.0/0 10.0.0.13
+      DST: 162.159.200.123
+    networks:
+      net_client_r1:
+        ipv4_address: 10.0.0.12
   client2:
     image: brstack_app:latest
     cap_add:
@@ -90,7 +104,7 @@ services:
       ROUTING: 10.0.0.0/24 0.0.0.0 10.0.1.0/24 0.0.0.0 0.0.0.0/0 10.0.1.12
     networks:
       net_client_r1:
-        ipv4_address: 10.0.0.12
+        ipv4_address: 10.0.0.13
       net_r1_r2:
         ipv4_address: 10.0.1.11
   router2:
@@ -160,7 +174,7 @@ networks:
       config:
       - subnet: 10.0.0.0/24
     driver_opts:
-      com.docker.network.bridge.enable_ip_masquerade: 0
+      #com.docker.network.bridge.enable_ip_masquerade: 0
       com.docker.network.bridge.name: brstk1
       com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   net_r1_r2:
@@ -168,7 +182,7 @@ networks:
       config:
       - subnet: 10.0.1.0/24
     driver_opts:
-      com.docker.network.bridge.enable_ip_masquerade: 0
+      #com.docker.network.bridge.enable_ip_masquerade: 0
       com.docker.network.bridge.name: brstk2
       com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   net_r2_server:
@@ -176,7 +190,7 @@ networks:
       config:
       - subnet: 10.0.2.0/24
     driver_opts:
-      com.docker.network.bridge.enable_ip_masquerade: 0
+      #com.docker.network.bridge.enable_ip_masquerade: 0
       com.docker.network.bridge.name: brstk3
       com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   net_r3_client:
@@ -184,7 +198,7 @@ networks:
       config:
       - subnet: 10.0.3.0/24
     driver_opts:
-      com.docker.network.bridge.enable_ip_masquerade: 0
+      #com.docker.network.bridge.enable_ip_masquerade: 0
       com.docker.network.bridge.name: brstk4
       com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
   external_net:
@@ -192,7 +206,7 @@ networks:
       config:
       - subnet: 10.0.4.0/24
     driver_opts:
-      com.docker.network.bridge.enable_ip_masquerade: 0
+      #com.docker.network.bridge.enable_ip_masquerade: 0
       com.docker.network.bridge.name: brstk5
       com.docker.network.bridge.trusted_host_interfaces: brstk1:brstk2:brstk3:brstk4:brstk5
 

@@ -45,5 +45,7 @@ nat = { path = "protocol/nat" }
 
 stun = { path = "protocol/stun" }
 
+ntp = { path = "protocol/ntp" }
+
 ## Common Definitions (Addresses, Constants,etc...)
 net_common = { path = "protocol/net_common" }

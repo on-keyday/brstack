@@ -35,7 +35,19 @@
                     "network": "net_client_r1"
                 }
             ],
-            "dest_server": "74.125.250.129"
+            "dest_server": "74.125.250.129",
+            "description": "Google STUN Server"
+        },
+        {
+            "name": "ntp_client1",
+            "role": "ntp_client",
+            "connections": [
+                {
+                    "network": "net_client_r1"
+                }
+            ],
+            "dest_server": "162.159.200.123",
+            "description": "Cloudflare NTP Server"
         },
         {
             "name": "client2",

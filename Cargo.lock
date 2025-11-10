@@ -126,6 +126,7 @@ dependencies = [
  "log",
  "nat",
  "net_common",
+ "ntp",
  "stun",
  "tokio",
  "udp",
@@ -316,6 +317,16 @@ dependencies = [
 [[package]]
 name = "net_common"
 version = "0.1.0"
+
+[[package]]
+name = "ntp"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "net_common",
+ "tokio",
+ "udp",
+]
 
 [[package]]
 name = "object"

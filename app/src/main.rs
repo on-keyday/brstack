@@ -261,6 +261,27 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
       }
     });
+  } else if role == "ntp_client" {
+    let dst_ip = dst_ip.expect("DST should be set for ntp_client");
+    let udp_socket = udp.connect(
+      net_common::AddrPort { address: dst_ip, port: 123 },None
+    ).await.unwrap();
+    let mut ntp_handler = ntp::NTPHandler::new(udp_socket);
+    tokio::spawn( async move {
+      loop {
+        match ntp_handler.time(
+          net_common::AddrPort { address: dst_ip, port: 123 }
+        ).await {
+          Ok(_) => {
+            log::info!("NTP request successful to {}", dst_ip);
+          }
+          Err(e) => {
+            log::error!("Error in NTP request to {}: {}", dst_ip, e);
+          }
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+      }
+    });
   }
   loop {
     // このループは、メインスレッドが終了しないようにするためのもの

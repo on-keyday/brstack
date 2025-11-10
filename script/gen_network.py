@@ -168,7 +168,7 @@ def generate_routing_info(node_name, node, node_configs_map, network_subnets, no
 def generate_client_dest_ip(node_name, node, node_configs_map, node_ips):
     """Generates the DEST IP address for a client node."""
     role = node.get('role')
-    if role != 'client' and role != 'stun_client':
+    if role is None or not role.endswith('client'):
         return None
 
     dest_server_name = node.get('dest_server')
@@ -334,6 +334,9 @@ def generate_dot(config, network_subnets, node_ips, node_configs_map, service_ro
         elif role == 'stun_client':
             shape = 'ellipse'
             color = 'violet'
+        elif role == 'ntp_client':
+            shape = 'ellipse'
+            color = 'cyan'
 
         safe_node_name = node_name.replace('-', '_')
 
